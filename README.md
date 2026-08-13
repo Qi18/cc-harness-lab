@@ -30,6 +30,15 @@ User Task
 - 对部分高风险命令进行拦截
 - 限制命令执行时间和输出长度
 
+### `s02_tool_use`
+
+在 s01 的循环之上增加可扩展的工具分发：
+
+- 提供 `bash`、`read_file`、`write_file`、`edit_file` 和 `glob` 五个工具
+- 通过 `TOOL_HANDLERS` 按名称查表执行，新增工具不需要修改 Agent Loop
+- 文件工具只能访问 `CC_WORKDIR`，阻止相对路径、绝对路径和符号链接逃逸
+- 支持模型在一轮响应中顺序调用多个工具
+
 ## Project Structure
 
 ```text
@@ -37,8 +46,12 @@ User Task
 ├── s01_agent_loop/
 │   ├── README.md
 │   └── code.py
+├── s02_tool_use/
+│   ├── README.md
+│   └── code.py
 ├── tests/
-│   └── test_s01.py
+│   ├── test_s01.py
+│   └── test_s02.py
 ├── .env.example
 └── requirements.txt
 ```
@@ -57,6 +70,9 @@ cp .env.example .env
 # 编辑 .env，填入 DASHSCOPE_API_KEY
 
 python s01_agent_loop/code.py
+
+# 第二章：工具分发
+python s02_tool_use/code.py
 ```
 
 运行测试：
@@ -82,4 +98,6 @@ python -m pytest
 
 ## Safety
 
-`s01` 只实现了基础命令拦截、超时和输出截断，仍然是学习代码。请在受控目录和隔离环境中运行，不要直接用于生产环境。
+`s01` 只实现了基础命令拦截、超时和输出截断；`s02` 给文件工具增加了
+`CC_WORKDIR` 路径边界，但 Bash 仍没有完整的权限系统。代码仍用于学习，请在
+受控目录和隔离环境中运行，不要直接用于生产环境。
