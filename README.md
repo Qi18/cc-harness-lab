@@ -39,6 +39,16 @@ User Task
 - 文件工具只能访问 `CC_WORKDIR`，阻止相对路径、绝对路径和符号链接逃逸
 - 支持模型在一轮响应中顺序调用多个工具
 
+### `s03_permission`
+
+在每次工具执行前增加三段式权限管线：
+
+- 硬拒绝：危险命令直接阻止，不能通过审批覆盖
+- 软询问：删除、修改系统路径等风险操作暂停等待用户确认
+- 默认放行：安全读取和工作目录内文件操作无需打断用户
+- 默认拒绝：审批输入不是 `y` 或 `yes` 时不执行工具
+- 审批不会扩大 `CC_WORKDIR` 的文件系统边界
+
 ## Project Structure
 
 ```text
@@ -49,9 +59,13 @@ User Task
 ├── s02_tool_use/
 │   ├── README.md
 │   └── code.py
+├── s03_permission/
+│   ├── README.md
+│   └── code.py
 ├── tests/
 │   ├── test_s01.py
-│   └── test_s02.py
+│   ├── test_s02.py
+│   └── test_s03.py
 ├── .env.example
 └── requirements.txt
 ```
@@ -73,6 +87,9 @@ python s01_agent_loop/code.py
 
 # 第二章：工具分发
 python s02_tool_use/code.py
+
+# 第三章：权限管线
+python s03_permission/code.py
 ```
 
 运行测试：
@@ -99,5 +116,6 @@ python -m pytest
 ## Safety
 
 `s01` 只实现了基础命令拦截、超时和输出截断；`s02` 给文件工具增加了
-`CC_WORKDIR` 路径边界，但 Bash 仍没有完整的权限系统。代码仍用于学习，请在
-受控目录和隔离环境中运行，不要直接用于生产环境。
+`CC_WORKDIR` 路径边界；`s03` 增加教学版权限管线，但命令字符串匹配仍可能被
+Shell 变体绕过。代码仍用于学习，请在受控目录和隔离环境中运行，不要直接用于
+生产环境。
