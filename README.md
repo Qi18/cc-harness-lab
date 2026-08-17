@@ -69,6 +69,16 @@ User Task
 - TODO 保存在当前进程内存中，终端实时展示状态
 - 连续三轮没有调用 `todo_write` 时向模型注入更新提醒
 
+### `s06_subagent`
+
+增加同步子 Agent 和上下文隔离：
+
+- 第七个工具 `task` 为子任务创建全新的消息历史
+- 子 Agent 只有五个基础工具，不能递归调用 `task`
+- 子工具调用继续经过权限与生命周期 Hook
+- 子循环最多运行 30 轮，只向父 Agent 返回最终文本结论
+- 子上下文会丢弃，但文件系统副作用保留在共享工作目录
+
 ## Project Structure
 
 ```text
@@ -88,12 +98,16 @@ User Task
 ├── s05_todo_write/
 │   ├── README.md
 │   └── code.py
+├── s06_subagent/
+│   ├── README.md
+│   └── code.py
 ├── tests/
 │   ├── test_s01.py
 │   ├── test_s02.py
 │   ├── test_s03.py
 │   ├── test_s04.py
-│   └── test_s05.py
+│   ├── test_s05.py
+│   └── test_s06.py
 ├── .env.example
 └── requirements.txt
 ```
@@ -124,6 +138,9 @@ python s04_hooks/code.py
 
 # 第五章：TodoWrite 计划
 python s05_todo_write/code.py
+
+# 第六章：同步子 Agent
+python s06_subagent/code.py
 ```
 
 运行测试：
@@ -152,5 +169,6 @@ python -m pytest
 `s01` 只实现了基础命令拦截、超时和输出截断；`s02` 给文件工具增加了
 `CC_WORKDIR` 路径边界；`s03` 增加教学版权限管线，但命令字符串匹配仍可能被
 Shell 变体绕过；`s04` 的 Hook 是进程内同步回调，没有隔离第三方 Hook；s05 的
-TODO 只存在于内存中，进程退出即丢失。代码仍用于学习，请在受控目录和隔离环境
+TODO 只存在于内存中，进程退出即丢失；s06 子 Agent 同步占用父循环，且共享同一
+工作目录，不提供进程或文件隔离。代码仍用于学习，请在受控目录和隔离环境
 中运行，不要直接用于生产环境。
