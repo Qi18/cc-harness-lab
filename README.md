@@ -59,6 +59,16 @@ User Task
 - `Stop`：Agent 准备返回最终答案前，可要求继续一轮
 - s03 权限管线作为 `PreToolUse` Hook 保留
 
+### `s05_todo_write`
+
+增加显式计划和进度管理能力：
+
+- 第六个工具 `todo_write` 创建或整体替换当前任务列表
+- 支持 `pending`、`in_progress`、`completed` 三种状态
+- 任务内容不能为空，同一时刻最多一个任务处于 `in_progress`
+- TODO 保存在当前进程内存中，终端实时展示状态
+- 连续三轮没有调用 `todo_write` 时向模型注入更新提醒
+
 ## Project Structure
 
 ```text
@@ -75,11 +85,15 @@ User Task
 ├── s04_hooks/
 │   ├── README.md
 │   └── code.py
+├── s05_todo_write/
+│   ├── README.md
+│   └── code.py
 ├── tests/
 │   ├── test_s01.py
 │   ├── test_s02.py
 │   ├── test_s03.py
-│   └── test_s04.py
+│   ├── test_s04.py
+│   └── test_s05.py
 ├── .env.example
 └── requirements.txt
 ```
@@ -107,6 +121,9 @@ python s03_permission/code.py
 
 # 第四章：生命周期 Hooks
 python s04_hooks/code.py
+
+# 第五章：TodoWrite 计划
+python s05_todo_write/code.py
 ```
 
 运行测试：
@@ -134,5 +151,6 @@ python -m pytest
 
 `s01` 只实现了基础命令拦截、超时和输出截断；`s02` 给文件工具增加了
 `CC_WORKDIR` 路径边界；`s03` 增加教学版权限管线，但命令字符串匹配仍可能被
-Shell 变体绕过；`s04` 的 Hook 是进程内同步回调，没有隔离第三方 Hook。代码仍
-用于学习，请在受控目录和隔离环境中运行，不要直接用于生产环境。
+Shell 变体绕过；`s04` 的 Hook 是进程内同步回调，没有隔离第三方 Hook；s05 的
+TODO 只存在于内存中，进程退出即丢失。代码仍用于学习，请在受控目录和隔离环境
+中运行，不要直接用于生产环境。
