@@ -49,6 +49,16 @@ User Task
 - 默认拒绝：审批输入不是 `y` 或 `yes` 时不执行工具
 - 审批不会扩大 `CC_WORKDIR` 的文件系统边界
 
+### `s04_hooks`
+
+把跨领域行为注册到生命周期 Hook，而不是继续堆进核心循环：
+
+- `UserPromptSubmit`：用户输入进入模型前
+- `PreToolUse`：handler 执行前，可阻止工具调用
+- `PostToolUse`：handler 执行后，可检查输出或追加副作用
+- `Stop`：Agent 准备返回最终答案前，可要求继续一轮
+- s03 权限管线作为 `PreToolUse` Hook 保留
+
 ## Project Structure
 
 ```text
@@ -62,10 +72,14 @@ User Task
 ├── s03_permission/
 │   ├── README.md
 │   └── code.py
+├── s04_hooks/
+│   ├── README.md
+│   └── code.py
 ├── tests/
 │   ├── test_s01.py
 │   ├── test_s02.py
-│   └── test_s03.py
+│   ├── test_s03.py
+│   └── test_s04.py
 ├── .env.example
 └── requirements.txt
 ```
@@ -90,6 +104,9 @@ python s02_tool_use/code.py
 
 # 第三章：权限管线
 python s03_permission/code.py
+
+# 第四章：生命周期 Hooks
+python s04_hooks/code.py
 ```
 
 运行测试：
@@ -117,5 +134,5 @@ python -m pytest
 
 `s01` 只实现了基础命令拦截、超时和输出截断；`s02` 给文件工具增加了
 `CC_WORKDIR` 路径边界；`s03` 增加教学版权限管线，但命令字符串匹配仍可能被
-Shell 变体绕过。代码仍用于学习，请在受控目录和隔离环境中运行，不要直接用于
-生产环境。
+Shell 变体绕过；`s04` 的 Hook 是进程内同步回调，没有隔离第三方 Hook。代码仍
+用于学习，请在受控目录和隔离环境中运行，不要直接用于生产环境。
