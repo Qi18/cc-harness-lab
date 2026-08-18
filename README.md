@@ -79,6 +79,16 @@ User Task
 - 子循环最多运行 30 轮，只向父 Agent 返回最终文本结论
 - 子上下文会丢弃，但文件系统副作用保留在共享工作目录
 
+### `s07_skill_loading`
+
+增加两级、按需的 Skill 加载：
+
+- 启动时扫描 `skills/*/SKILL.md`，只把名称和描述注入 system prompt
+- 第八个工具 `load_skill` 按注册名称返回完整技能内容
+- 完整正文通过工具结果进入当前上下文，不常驻初始提示词
+- 父 Agent 和子 Agent 都能加载技能，子 Agent仍不能递归委派
+- 注册表隔离文件路径，越过技能根目录的符号链接不会被扫描
+
 ## Project Structure
 
 ```text
@@ -101,13 +111,20 @@ User Task
 ├── s06_subagent/
 │   ├── README.md
 │   └── code.py
+├── s07_skill_loading/
+│   ├── README.md
+│   └── code.py
+├── skills/
+│   └── code-review/
+│       └── SKILL.md
 ├── tests/
 │   ├── test_s01.py
 │   ├── test_s02.py
 │   ├── test_s03.py
 │   ├── test_s04.py
 │   ├── test_s05.py
-│   └── test_s06.py
+│   ├── test_s06.py
+│   └── test_s07.py
 ├── .env.example
 └── requirements.txt
 ```
@@ -141,6 +158,9 @@ python s05_todo_write/code.py
 
 # 第六章：同步子 Agent
 python s06_subagent/code.py
+
+# 第七章：按需加载 Skills
+python3 s07_skill_loading/code.py
 ```
 
 运行测试：
@@ -157,6 +177,7 @@ python -m pytest
 | `DASHSCOPE_BASE_URL` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | OpenAI 兼容接口地址 |
 | `MODEL_ID` | `qwen-plus` | 使用的模型 |
 | `CC_WORKDIR` | 当前启动目录 | Bash 工具的工作目录 |
+| `CC_SKILLS_DIR` | `<CC_WORKDIR>/skills` | s07 扫描的技能目录 |
 
 真实 API Key 只从环境变量或本地 `.env` 文件读取，`.env` 不会提交到仓库。
 
@@ -170,5 +191,6 @@ python -m pytest
 `CC_WORKDIR` 路径边界；`s03` 增加教学版权限管线，但命令字符串匹配仍可能被
 Shell 变体绕过；`s04` 的 Hook 是进程内同步回调，没有隔离第三方 Hook；s05 的
 TODO 只存在于内存中，进程退出即丢失；s06 子 Agent 同步占用父循环，且共享同一
-工作目录，不提供进程或文件隔离。代码仍用于学习，请在受控目录和隔离环境
+工作目录，不提供进程或文件隔离；s07 会把加载的技能内容作为模型指令使用，因此
+只应安装和加载可信的 `SKILL.md`。代码仍用于学习，请在受控目录和隔离环境
 中运行，不要直接用于生产环境。
