@@ -2,3 +2,7 @@
 .venv/
 __pycache__/
 *.py[cod]
+.transcripts/
+.task_outputs/
+test_large.bin
+gen_large.py

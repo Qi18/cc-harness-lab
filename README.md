@@ -89,6 +89,17 @@ User Task
 - 父 Agent 和子 Agent 都能加载技能，子 Agent仍不能递归委派
 - 注册表隔离文件路径，越过技能根目录的符号链接不会被扫描
 
+### `s08_context_compact`
+
+增加分层上下文压缩和恢复记录：
+
+- L3 先把超预算工具结果写入 `.task_outputs/tool-results/`
+- L1 裁剪旧的中间消息，并保护工具调用与结果的配对边界
+- L2 只保留最近 3 条完整工具结果，其余替换为短占位符
+- L4 超过字符阈值时保存 JSONL transcript，并调用模型生成事实摘要
+- API 上下文溢出时最多执行一次 reactive compact
+- 第九个工具 `compact` 允许父 Agent 主动请求压缩
+
 ## Project Structure
 
 ```text
@@ -114,6 +125,9 @@ User Task
 ├── s07_skill_loading/
 │   ├── README.md
 │   └── code.py
+├── s08_context_compact/
+│   ├── README.md
+│   └── code.py
 ├── skills/
 │   └── code-review/
 │       └── SKILL.md
@@ -124,7 +138,8 @@ User Task
 │   ├── test_s04.py
 │   ├── test_s05.py
 │   ├── test_s06.py
-│   └── test_s07.py
+│   ├── test_s07.py
+│   └── test_s08.py
 ├── .env.example
 └── requirements.txt
 ```
@@ -161,6 +176,9 @@ python s06_subagent/code.py
 
 # 第七章：按需加载 Skills
 python3 s07_skill_loading/code.py
+
+# 第八章：分层上下文压缩
+python3 s08_context_compact/code.py
 ```
 
 运行测试：
@@ -192,5 +210,7 @@ python -m pytest
 Shell 变体绕过；`s04` 的 Hook 是进程内同步回调，没有隔离第三方 Hook；s05 的
 TODO 只存在于内存中，进程退出即丢失；s06 子 Agent 同步占用父循环，且共享同一
 工作目录，不提供进程或文件隔离；s07 会把加载的技能内容作为模型指令使用，因此
-只应安装和加载可信的 `SKILL.md`。代码仍用于学习，请在受控目录和隔离环境
+只应安装和加载可信的 `SKILL.md`；s08 transcript 和落盘工具结果可能包含源代码或
+命令输出等敏感内容，应限制工作目录权限并按需清理。代码仍用于学习，请在受控目录
+和隔离环境
 中运行，不要直接用于生产环境。
