@@ -4,6 +4,99 @@
 
 这个仓库不是通用 Agent 框架，而是按阶段演进的学习与实验项目：每个目录聚焦一个可独立运行的能力。
 
+## 与官方项目的关系
+
+本仓库跟随 ShareAI Lab 的 Learn Claude Code 课程学习 Harness Engineering，但不是
+官方仓库的 fork，也不是逐行翻译。这里保留课程的核心机制，用自己的消息协议、模型
+客户端、安全边界和测试重新实现，并让每个阶段真正继承前一阶段的完整能力。
+
+官方入口：
+
+- [Learn Claude Code 官方源码](https://github.com/shareAI-lab/learn-claude-code)
+- [Learn Claude Code 中文教程](https://learn.shareai.run/zh/)
+
+两者共同遵循同一个核心循环：模型读取 `messages`，决定是否调用工具；Harness 只负责
+执行工具、返回 observation、管理上下文和权限。差异主要发生在循环周围，而不是 Agent
+Loop 的基本形状。
+
+### 整体差异
+
+| 维度 | 官方 Learn Claude Code | 本仓库 cc-harness-lab |
+| --- | --- | --- |
+| 当前课程范围 | 主线 s01–s17，另有 legacy track 和 Web 教学平台 | 当前完成 s01–s09，只保留代码、中文说明和测试 |
+| 章节组织 | 每章隔离一个机制，部分章节使用较小 kernel，s15 再组装完整 Harness | 每章直接复制并继承上一章，s09 已包含 s01–s08 全部能力 |
+| 默认模型协议 | Anthropic SDK，`tool_use` / `tool_result` content blocks | 百炼 OpenAI-compatible，`tool_calls` / 独立 `role=tool` 消息 |
+| 默认配置 | `ANTHROPIC_API_KEY`、`ANTHROPIC_BASE_URL`、`MODEL_ID` | `DASHSCOPE_API_KEY`、`DASHSCOPE_BASE_URL`、`MODEL_ID` |
+| Tool Schema | Anthropic `name + input_schema` | OpenAI function calling 的 `type=function + function.parameters` |
+| 工具执行 | 教学版直接分发 handler | handler 分发外叠加输出截断、路径边界、权限和 Hook |
+| 文件边界 | 课程示例按章节展示 workspace 检查和审批 | 从 s02 起统一限制在 `CC_WORKDIR`，审批也不能扩大边界 |
+| 子 Agent | 聚焦 fresh `messages[]` 和结果返回 | 额外限制 30 轮、禁止递归 `task`，复用权限与 Hook |
+| Context Compact | 讲解四层压缩机制 | 适配 OpenAI 消息配对，增加 transcript、主动 compact 和单次 reactive retry |
+| Memory | selection、extraction、consolidation | 与 s08 联动，使用压缩前快照，并增加常见 Secret 拒绝和可配置目录 |
+| 验证方式 | 官方 runnable lessons 与上游测试 | 每章对应 `tests/test_sXX.py`，当前全量 121 项测试 |
+| 文档形态 | 英文默认文档、中文/日文翻译、图片和 Web 课程 | 中文 README、源码分析和远端可运行实验，不包含 Web 平台 |
+
+### 为什么本仓库代码更长
+
+官方课程强调“每章只看一个机制”，因此某些章节会换回较小的 Agent kernel；当前官方
+s01–s09 的 `code.py` 大约从 141 行增长到 757 行。本仓库采用严格累计方式，从 s01 的
+202 行增长到 s09 的 1930 行。增长部分不全是当前章节的新能力，而是前面所有机制都
+继续存在，例如 s09 同时保留权限、Hooks、Todo、SubAgent、Skills 和 Compact。
+
+这种组织适合观察真实 Harness 怎样逐步变复杂，也能验证新增机制没有破坏旧能力；代价是
+重复代码较多，章节 diff 更大，后续修复可能需要同步多个阶段。官方的隔离式章节更容易
+教学和单独阅读，完整能力则在后面的 integrated harness 重新汇合。
+
+### 协议适配不是字段改名
+
+官方 Anthropic 格式把工具调用放在 assistant content blocks 中，并把多个工具结果作为
+下一条 user 消息里的 `tool_result` blocks 返回。本仓库使用 OpenAI-compatible 格式：
+assistant 产生 `tool_calls`，每个结果追加为独立的 `role=tool` 消息，并通过
+`tool_call_id` 配对。
+
+这影响的不只是 API 调用，还影响：
+
+- 工具调用和结果的解析、追加与日志展示；
+- s08 裁剪时如何保证 assistant tool call 与连续 tool messages 不被切断；
+- compact 摘要如何保留当前请求和工具边界；
+- Kimi 等兼容模型需要的 `extra_body` 扩展参数。
+
+所以本仓库是在复现 Harness 机制，而不是复制官方消息结构。
+
+### s01–s09 的实现偏差
+
+| 阶段 | 共同主题 | 本仓库相对官方的主要实现选择 |
+| --- | --- | --- |
+| s01 | Agent Loop | 改用百炼客户端，并提前加入命令超时、输出上限和基础 deny list |
+| s02 | Tool Use | 文件工具统一经过 `safe_path()`，阻止绝对路径、`..` 和符号链接逃逸 |
+| s03 | Permission | 明确拆成硬拒绝、软询问、默认放行；人工批准不能突破工作目录 |
+| s04 | Hooks | 保留四类同步 Hook，并把 s03 权限管线注册成 `PreToolUse` |
+| s05 | TodoWrite | 增加结构校验、单一 `in_progress` 约束和连续三轮未更新提醒 |
+| s06 | SubAgent | 同步执行、最多 30 轮、共享文件系统但隔离消息，禁止递归委派 |
+| s07 | Skills | 扫描 `skills/*/SKILL.md`，只常驻目录，全文通过 `load_skill` 按需进入上下文 |
+| s08 | Compact | 为 OpenAI tool messages 重写边界处理，增加主动工具、落盘恢复和应急压缩 |
+| s09 | Memory | 索引常驻 system、正文附加到当前 user turn，使用独立提取快照和 Secret 过滤 |
+
+每章更细的运行逻辑、权衡和与官方单章源码的差异，记录在对应目录的 README 或
+ANALYSIS 文档中。例如 s09 的 Memory 对照见
+[`s09_memory/README.md`](s09_memory/README.md#与官方代码的区别)。
+
+### 当前尚未覆盖的官方主线
+
+官方当前后续章节还包括：
+
+- s10 Task System：持久任务与依赖图；
+- s11 Background Tasks：后台线程和完成通知；
+- s12 Cron Scheduler：持久化定时触发；
+- s13 Agent Teams：持久队友、原子任务领取和工作目录绑定；
+- s14 MCP Plugin：外部工具发现和命名空间路由；
+- s15 Integrated Harness：把课程机制重新组装进一个完整循环；
+- s16 Workflow Runtime：固定编排、事件和可恢复 journal；
+- s17 Goal Loop：独立评估器决定是否允许 Agent 停止。
+
+因此，本仓库目前只能与官方 s01–s09 对齐，不能被描述为官方完整实现，也不是 Claude
+Code 本体的等价替代。
+
 ## Current Stage
 
 ### `s01_agent_loop`
@@ -103,8 +196,8 @@ User Task
 ### `s09_memory`
 
 在 s08 的会话压缩之外增加跨会话持久记忆：
-完整设计与源码差异见 [`s09_memory/README.md`](s09_memory/README.md)，对照
-[官方教程](https://learn.shareai.run/zh/s09/)和
+本章设计与 Memory 单章差异见 [`s09_memory/README.md`](s09_memory/README.md)，对照
+[s09 官方教程](https://learn.shareai.run/zh/s09/)和
 [官方源码](https://github.com/shareAI-lab/learn-claude-code/blob/main/s09_memory/code.py)。
 
 - `.memory/*.md` 保存带 YAML frontmatter 的独立记忆
@@ -223,7 +316,16 @@ python -m pytest
 
 ## Roadmap
 
-后续将逐步补充更多工具、任务规划、子 Agent、Skill 加载、上下文压缩和 Memory 等 Agent Harness 能力。
+后续按官方当前主线继续实现，同时保持百炼 OpenAI-compatible 适配和累计回归：
+
+1. s10 Task System
+2. s11 Background Tasks
+3. s12 Cron Scheduler
+4. s13 Agent Teams
+5. s14 MCP Plugin
+6. s15 Integrated Harness
+7. s16 Workflow Runtime
+8. s17 Goal Loop
 
 ## Safety
 
