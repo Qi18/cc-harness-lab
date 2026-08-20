@@ -4,5 +4,6 @@ __pycache__/
 *.py[cod]
 .transcripts/
 .task_outputs/
+.memory/
 test_large.bin
 gen_large.py

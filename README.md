@@ -100,6 +100,20 @@ User Task
 - API 上下文溢出时最多执行一次 reactive compact
 - 第九个工具 `compact` 允许父 Agent 主动请求压缩
 
+### `s09_memory`
+
+在 s08 的会话压缩之外增加跨会话持久记忆：
+完整设计与源码差异见 [`s09_memory/README.md`](s09_memory/README.md)，对照
+[官方教程](https://learn.shareai.run/zh/s09/)和
+[官方源码](https://github.com/shareAI-lab/learn-claude-code/blob/main/s09_memory/code.py)。
+
+- `.memory/*.md` 保存带 YAML frontmatter 的独立记忆
+- `.memory/MEMORY.md` 只把紧凑目录注入 system prompt
+- 每轮通过无工具 side-query 选择最多 5 条相关记忆，失败时关键词降级
+- 最终回答后提取稳定偏好、反馈、项目事实和 reference
+- 拒绝临时状态、重复记录及 API Key/Secret 等敏感内容
+- 达到 10 条后合并去重到最多 8 条，失败时恢复原文件
+
 ## Project Structure
 
 ```text
@@ -128,6 +142,9 @@ User Task
 ├── s08_context_compact/
 │   ├── README.md
 │   └── code.py
+├── s09_memory/
+│   ├── README.md
+│   └── code.py
 ├── skills/
 │   └── code-review/
 │       └── SKILL.md
@@ -139,7 +156,8 @@ User Task
 │   ├── test_s05.py
 │   ├── test_s06.py
 │   ├── test_s07.py
-│   └── test_s08.py
+│   ├── test_s08.py
+│   └── test_s09.py
 ├── .env.example
 └── requirements.txt
 ```
@@ -179,6 +197,9 @@ python3 s07_skill_loading/code.py
 
 # 第八章：分层上下文压缩
 python3 s08_context_compact/code.py
+
+# 第九章：跨会话长期记忆
+python3 s09_memory/code.py
 ```
 
 运行测试：
@@ -196,6 +217,7 @@ python -m pytest
 | `MODEL_ID` | `qwen-plus` | 使用的模型 |
 | `CC_WORKDIR` | 当前启动目录 | Bash 工具的工作目录 |
 | `CC_SKILLS_DIR` | `<CC_WORKDIR>/skills` | s07 扫描的技能目录 |
+| `CC_MEMORY_DIR` | `<CC_WORKDIR>/.memory` | s09 长期记忆目录，必须位于工作目录内 |
 
 真实 API Key 只从环境变量或本地 `.env` 文件读取，`.env` 不会提交到仓库。
 
@@ -211,6 +233,7 @@ Shell 变体绕过；`s04` 的 Hook 是进程内同步回调，没有隔离第�
 TODO 只存在于内存中，进程退出即丢失；s06 子 Agent 同步占用父循环，且共享同一
 工作目录，不提供进程或文件隔离；s07 会把加载的技能内容作为模型指令使用，因此
 只应安装和加载可信的 `SKILL.md`；s08 transcript 和落盘工具结果可能包含源代码或
-命令输出等敏感内容，应限制工作目录权限并按需清理。代码仍用于学习，请在受控目录
-和隔离环境
-中运行，不要直接用于生产环境。
+命令输出等敏感内容，应限制工作目录权限并按需清理；s09 会持久化模型提取出的长期
+上下文，虽然代码会拒绝常见密钥格式，仍应定期审阅 `.memory/`，不要把凭据、客户
+数据或其他敏感信息写入记忆。代码仍用于学习，请在受控目录和隔离环境中运行，不要
+直接用于生产环境。
