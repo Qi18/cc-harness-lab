@@ -4,6 +4,20 @@
 
 这个仓库不是通用 Agent 框架，而是按阶段演进的学习与实验项目：每个目录聚焦一个可独立运行的能力。
 
+## 当前进度
+
+当前已完成 s01–s13，并通过 170 项自动化测试。本次已按官方课程顺序纠正第十、十一章：
+
+| 章节 | 主题 | 关键实现 |
+| --- | --- | --- |
+| [s10](s10_system_prompt/) | System Prompt | 根据真实工具、工作区、Skills 和 Memory 元数据动态组装并缓存 |
+| [s11](s11_error_recovery/) | Error Recovery | 输出截断续写、reactive compact、429/529 退避及 fallback |
+| [s12](s12_task_system/) | Task System | 原 s10 顺延；持久任务图、依赖和状态机 |
+| [s13](s13_background_tasks/) | Background Tasks | 原 s11 顺延；后台 Bash、完成通知和进程组清理 |
+
+也就是说，旧的 `s10_task_system` 与 `s11_background_tasks` 不再占用第十、十一章，
+对应能力已顺延到 s12、s13。各章节继续采用累计实现：后章保留前章能力，而不是孤立示例。
+
 ## 与官方项目的关系
 
 本仓库跟随 ShareAI Lab 的 Learn Claude Code 课程学习 Harness Engineering，但不是
