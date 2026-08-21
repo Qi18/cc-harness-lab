@@ -1,6 +1,6 @@
 # CC Harness 评测方案
 
-> 状态：规划中。当前先固化评测设计；完成 s01–s17 和 Integrated Harness 后再实现
+> 状态：规划中。当前先固化评测设计；完成 s01–s20 和 Comprehensive Agent 后再实现
 > `evals/`、采集 baseline，并接入持续评测。
 
 ## 评测目标
