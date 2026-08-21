@@ -23,7 +23,7 @@ Loop 的基本形状。
 
 | 维度 | 官方 Learn Claude Code | 本仓库 cc-harness-lab |
 | --- | --- | --- |
-| 当前课程范围 | 主线 s01–s17，另有 legacy track 和 Web 教学平台 | 当前完成 s01–s10，保留代码、中文说明和测试 |
+| 当前课程范围 | 主线 s01–s17，另有 legacy track 和 Web 教学平台 | 当前完成 s01–s11，保留代码、中文说明和测试 |
 | 章节组织 | 每章隔离一个机制，部分章节使用较小 kernel，s15 再组装完整 Harness | 每章直接复制并继承上一章，s09 已包含 s01–s08 全部能力 |
 | 默认模型协议 | Anthropic SDK，`tool_use` / `tool_result` content blocks | 百炼 OpenAI-compatible，`tool_calls` / 独立 `role=tool` 消息 |
 | 默认配置 | `ANTHROPIC_API_KEY`、`ANTHROPIC_BASE_URL`、`MODEL_ID` | `DASHSCOPE_API_KEY`、`DASHSCOPE_BASE_URL`、`MODEL_ID` |
@@ -33,7 +33,7 @@ Loop 的基本形状。
 | 子 Agent | 聚焦 fresh `messages[]` 和结果返回 | 额外限制 30 轮、禁止递归 `task`，复用权限与 Hook |
 | Context Compact | 讲解四层压缩机制 | 适配 OpenAI 消息配对，增加 transcript、主动 compact 和单次 reactive retry |
 | Memory | selection、extraction、consolidation | 与 s08 联动，使用压缩前快照，并增加常见 Secret 拒绝和可配置目录 |
-| 验证方式 | 官方 runnable lessons 与上游测试 | 每章对应 `tests/test_sXX.py`，当前全量 138 项测试 |
+| 验证方式 | 官方 runnable lessons 与上游测试 | 每章对应 `tests/test_sXX.py`，当前全量 150 项测试 |
 | 文档形态 | 英文默认文档、中文/日文翻译、图片和 Web 课程 | 中文 README、源码分析和远端可运行实验，不包含 Web 平台 |
 
 ### 为什么本仓库代码更长
@@ -66,7 +66,7 @@ assistant 产生 `tool_calls`，每个结果追加为独立的 `role=tool` 消�
 
 所以本仓库是在复现 Harness 机制，而不是复制官方消息结构。
 
-### s01–s10 的实现偏差
+### s01–s11 的实现偏差
 
 | 阶段 | 共同主题 | 本仓库相对官方的主要实现选择 |
 | --- | --- | --- |
@@ -80,6 +80,7 @@ assistant 产生 `tool_calls`，每个结果追加为独立的 `role=tool` 消�
 | s08 | Compact | 为 OpenAI tool messages 重写边界处理，增加主动工具、落盘恢复和应急压缩 |
 | s09 | Memory | 索引常驻 system、正文附加到当前 user turn，使用独立提取快照和 Secret 过滤 |
 | s10 | Task System | 从本章开始模块化；增加两阶段依赖图、原子文件替换和父 Agent 专属任务工具 |
+| s11 | Background Tasks | 独立后台模块、进程组清理、一次性通知队列；后台参数仅对父 Agent Bash 开放 |
 
 每章更细的运行逻辑、权衡和与官方单章源码的差异，记录在对应目录的 README 或
 ANALYSIS 文档中。例如 s09 的 Memory 对照见
@@ -89,7 +90,6 @@ ANALYSIS 文档中。例如 s09 的 Memory 对照见
 
 官方当前后续章节还包括：
 
-- s11 Background Tasks：后台线程和完成通知；
 - s12 Cron Scheduler：持久化定时触发；
 - s13 Agent Teams：持久队友、原子任务领取和工作目录绑定；
 - s14 MCP Plugin：外部工具发现和命名空间路由；
@@ -97,7 +97,7 @@ ANALYSIS 文档中。例如 s09 的 Memory 对照见
 - s16 Workflow Runtime：固定编排、事件和可恢复 journal；
 - s17 Goal Loop：独立评估器决定是否允许 Agent 停止。
 
-因此，本仓库目前只能与官方 s01–s10 对齐，不能被描述为官方完整实现，也不是 Claude
+因此，本仓库目前只能与官方 s01–s11 对齐，不能被描述为官方完整实现，也不是 Claude
 Code 本体的等价替代。
 
 ## Current Stage
@@ -225,6 +225,21 @@ User Task
 - 任务目录必须位于 `CC_WORKDIR`，更新通过临时文件和 `os.replace` 完成
 - 六个任务工具仅提供给父 Agent，等待后续 Teams 章节再处理并发认领
 
+### `s11_background_tasks`
+
+在模块化 s10 上增加显式后台 Bash。详细设计见
+[`s11_background_tasks/README.md`](s11_background_tasks/README.md)，对照
+[s11 官方教程](https://learn.shareai.run/zh/s11/)和
+[官方源码](https://github.com/shareAI-lab/learn-claude-code/blob/main/s11_background_tasks/code.py)。
+
+- 父 Agent 的 Bash 增加 `run_in_background` boolean 参数
+- `BackgroundManager` 用 daemon thread 执行命令并返回 `bg_XXXX`
+- `ShellExecutor` 统一同步/后台进程组、超时、输出截断与退出清理
+- 原工具调用只返回一次占位 `role=tool`，完成结果用独立 user 通知注入
+- command 和 summary 经过 XML escaping，通知不会进入 Memory extraction snapshot
+- SubAgent 保持同步 Bash，避免后台结果跨越隔离上下文
+- 后台任务不会主动唤醒模型，只在后续模型轮次或用户 turn 前收集
+
 ## Project Structure
 
 ```text
@@ -265,6 +280,14 @@ User Task
 │       ├── memory.py
 │       ├── tasks.py
 │       └── ...
+├── s11_background_tasks/
+│   ├── README.md
+│   ├── code.py
+│   └── harness/
+│       ├── background.py
+│       ├── agent.py
+│       ├── tools.py
+│       └── ...
 ├── skills/
 │   └── code-review/
 │       └── SKILL.md
@@ -278,7 +301,8 @@ User Task
 │   ├── test_s07.py
 │   ├── test_s08.py
 │   ├── test_s09.py
-│   └── test_s10.py
+│   ├── test_s10.py
+│   └── test_s11.py
 ├── .env.example
 └── requirements.txt
 ```
@@ -324,6 +348,9 @@ python3 s09_memory/code.py
 
 # 第十章：模块化持久任务图
 python3 s10_task_system/code.py
+
+# 第十一章：后台 Bash 与完成通知
+python3 s11_background_tasks/code.py
 ```
 
 运行测试：
@@ -350,13 +377,12 @@ python -m pytest
 
 后续按官方当前主线继续实现，同时保持百炼 OpenAI-compatible 适配和累计回归：
 
-1. s11 Background Tasks
-2. s12 Cron Scheduler
-3. s13 Agent Teams
-4. s14 MCP Plugin
-5. s15 Integrated Harness
-6. s16 Workflow Runtime
-7. s17 Goal Loop
+1. s12 Cron Scheduler
+2. s13 Agent Teams
+3. s14 MCP Plugin
+4. s15 Integrated Harness
+5. s16 Workflow Runtime
+6. s17 Goal Loop
 
 ## Safety
 
@@ -369,5 +395,6 @@ TODO 只存在于内存中，进程退出即丢失；s06 子 Agent 同步占用�
 命令输出等敏感内容，应限制工作目录权限并按需清理；s09 会持久化模型提取出的长期
 上下文，虽然代码会拒绝常见密钥格式，仍应定期审阅 `.memory/`，不要把凭据、客户
 数据或其他敏感信息写入记忆；s10 的单文件更新是原子的，但 claim 还不是跨进程原子
-操作，不应用作并发任务队列。代码仍用于学习，请在受控目录和隔离环境中运行，不要
-直接用于生产环境。
+操作，不应用作并发任务队列；s11 会清理 Harness 跟踪的进程组，但后台 Bash 不是安全
+沙箱，仍拥有当前进程的文件和网络权限。代码仍用于学习，请在受控目录和隔离环境中
+运行，不要直接用于生产环境。
