@@ -54,10 +54,16 @@ SENSITIVE_MEMORY_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"),
     re.compile(r"\b(?:api[_ -]?key|access[_ -]?token|secret)\s*[:=]\s*\S+", re.I),
 )
+# 每个用户 turn 召回记忆正文的总字符预算。
 MEMORY_RECALL_CHAR_LIMIT = 20_000
+# 记录数 >= 10 触发整理，结果强制截断到 <= 8：一次成功整理
+# 必然使仓库回落到触发线以下，避免每轮反复整理。
 MEMORY_CONSOLIDATE_THRESHOLD = 10
 MEMORY_CONSOLIDATE_TARGET = 8
+# 整理输入超限时直接跳过本轮，而不是发送超长 side-query。
 MEMORY_CONSOLIDATE_INPUT_LIMIT = 20_000
+# 注入到最新 user turn 的召回数据边界标记；提取和重复注入前
+# 也用它把召回内容剥离出去。
 MEMORY_CONTEXT_START = "<relevant-memories>"
 MEMORY_CONTEXT_END = "</relevant-memories>"
 

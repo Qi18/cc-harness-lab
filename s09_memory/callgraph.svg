@@ -1,0 +1,198 @@
+<svg viewBox="0 0 980 1250" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, 'SF Mono', Consolas, monospace">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#6b7280"/>
+    </marker>
+    <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="980" height="1250" fill="#ffffff"/>
+
+  <rect x="10" y="10" width="960" height="290" rx="12" fill="none" stroke="#d0d0d5" stroke-dasharray="5 4"/>
+  <text x="26" y="34" fill="#6b7280" font-size="12">① turn 开始 · 每 turn 一次</text>
+
+  <rect x="30" y="50" width="200" height="52" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
+  <text x="130" y="72" text-anchor="middle" fill="#1f2328" font-size="13">agent_loop  L1772</text>
+  <text x="130" y="90" text-anchor="middle" fill="#6b7280" font-size="11">入口</text>
+
+  <rect x="30" y="130" width="200" height="52" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
+  <text x="130" y="152" text-anchor="middle" fill="#1f2328" font-size="12">latest_user_request</text>
+  <text x="130" y="169" text-anchor="middle" fill="#6b7280" font-size="11">active_request 兜底</text>
+
+  <rect x="30" y="210" width="200" height="52" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="130" y="232" text-anchor="middle" fill="#1f2328" font-size="12">deepcopy(messages[-12:])</text>
+  <text x="130" y="249" text-anchor="middle" fill="#6b7280" font-size="11">extraction_messages 快照 L1782</text>
+
+  <rect x="280" y="50" width="220" height="52" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="390" y="72" text-anchor="middle" fill="#1f2328" font-size="12">build_memory_system_prompt L734</text>
+  <text x="390" y="89" text-anchor="middle" fill="#6b7280" font-size="11">重写 system：索引常驻</text>
+
+  <rect x="540" y="50" width="180" height="44" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="630" y="77" text-anchor="middle" fill="#1f2328" font-size="12">read_memory_index</text>
+
+  <rect x="280" y="130" width="220" height="52" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="390" y="152" text-anchor="middle" fill="#1f2328" font-size="12">load_memories  L717</text>
+  <text x="390" y="169" text-anchor="middle" fill="#6b7280" font-size="11">2 万字符预算</text>
+
+  <rect x="540" y="122" width="220" height="52" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="650" y="144" text-anchor="middle" fill="#1f2328" font-size="12">select_relevant_memories L683</text>
+  <text x="650" y="161" text-anchor="middle" fill="#6b7280" font-size="11">side-query 选最多 5 条</text>
+
+  <rect x="790" y="110" width="170" height="40" rx="8" fill="#fdf3e0" stroke="#f59e0b"/>
+  <text x="875" y="135" text-anchor="middle" fill="#1f2328" font-size="12">memory_completion</text>
+
+  <rect x="790" y="160" width="170" height="40" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="875" y="180" text-anchor="middle" fill="#1f2328" font-size="11">keyword_memory_selection</text>
+  <text x="875" y="194" text-anchor="middle" fill="#6b7280" font-size="10">失败降级</text>
+
+  <rect x="540" y="196" width="180" height="40" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="630" y="221" text-anchor="middle" fill="#1f2328" font-size="12">read_memory_file</text>
+
+  <rect x="280" y="210" width="220" height="52" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="390" y="232" text-anchor="middle" fill="#1f2328" font-size="12">inject_recalled_memories L746</text>
+  <text x="390" y="249" text-anchor="middle" fill="#6b7280" font-size="11">正文附加到最新 user turn</text>
+
+  <line x1="130" y1="102" x2="130" y2="130" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="130" y1="182" x2="130" y2="210" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="230" y1="76" x2="280" y2="76" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrA)"/>
+  <line x1="500" y1="74" x2="540" y2="73" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrA)"/>
+  <line x1="230" y1="156" x2="280" y2="156" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrA)"/>
+  <line x1="500" y1="150" x2="540" y2="148" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrA)"/>
+  <line x1="760" y1="135" x2="790" y2="132" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrA)"/>
+  <line x1="760" y1="160" x2="790" y2="175" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrA)"/>
+  <line x1="500" y1="170" x2="540" y2="205" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrA)"/>
+  <line x1="230" y1="236" x2="280" y2="236" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrA)"/>
+
+  <rect x="10" y="320" width="960" height="530" rx="12" fill="none" stroke="#3b82f6" stroke-dasharray="5 4"/>
+  <text x="26" y="344" fill="#3b82f6" font-size="12">② while True 循环体 · 每轮模型调用</text>
+
+  <rect x="30" y="365" width="210" height="44" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
+  <text x="135" y="384" text-anchor="middle" fill="#1f2328" font-size="12">todo reminder 检查</text>
+  <text x="135" y="400" text-anchor="middle" fill="#6b7280" font-size="11">3 轮未 todo_write 则注入</text>
+
+  <rect x="30" y="440" width="210" height="52" rx="8" fill="#e3edfd" stroke="#3b82f6"/>
+  <text x="135" y="462" text-anchor="middle" fill="#1f2328" font-size="12">compactor.prepare</text>
+  <text x="135" y="479" text-anchor="middle" fill="#6b7280" font-size="11">每轮 preflight</text>
+
+  <rect x="280" y="428" width="250" height="76" rx="8" fill="#e3edfd" stroke="#3b82f6"/>
+  <text x="405" y="450" text-anchor="middle" fill="#1f2328" font-size="11">L3 tool_result_budget → L1 snip</text>
+  <text x="405" y="468" text-anchor="middle" fill="#1f2328" font-size="11">→ L2 micro → L4 compact_history</text>
+  <text x="405" y="490" text-anchor="middle" fill="#6b7280" font-size="10">便宜结构操作优先，LLM 摘要兜底</text>
+
+  <rect x="30" y="530" width="210" height="52" rx="8" fill="#fdf3e0" stroke="#f59e0b"/>
+  <text x="135" y="552" text-anchor="middle" fill="#1f2328" font-size="12">chat.completions.create</text>
+  <text x="135" y="569" text-anchor="middle" fill="#6b7280" font-size="11">主模型调用</text>
+
+  <rect x="280" y="530" width="250" height="52" rx="8" fill="#e3edfd" stroke="#3b82f6"/>
+  <text x="405" y="550" text-anchor="middle" fill="#1f2328" font-size="11">is_prompt_too_long_error?</text>
+  <text x="405" y="568" text-anchor="middle" fill="#1f2328" font-size="11">→ compactor.reactive_compact</text>
+
+  <rect x="580" y="530" width="170" height="52" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
+  <text x="665" y="552" text-anchor="middle" fill="#1f2328" font-size="12">continue 重试</text>
+  <text x="665" y="569" text-anchor="middle" fill="#6b7280" font-size="11">最多 1 次</text>
+
+  <rect x="30" y="620" width="210" height="52" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="135" y="642" text-anchor="middle" fill="#1f2328" font-size="12">assistant 消息双写</text>
+  <text x="135" y="659" text-anchor="middle" fill="#6b7280" font-size="11">messages + 快照 L1846</text>
+
+  <rect x="30" y="710" width="210" height="52" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
+  <text x="135" y="732" text-anchor="middle" fill="#1f2328" font-size="12">有 tool_calls?</text>
+  <text x="135" y="749" text-anchor="middle" fill="#6b7280" font-size="11">无 → 进入 ③ turn 结束</text>
+
+  <rect x="300" y="640" width="220" height="52" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
+  <text x="410" y="662" text-anchor="middle" fill="#1f2328" font-size="12">request_manual_compact</text>
+  <text x="410" y="679" text-anchor="middle" fill="#6b7280" font-size="11">compact 工具 · 审批阶段</text>
+
+  <rect x="300" y="720" width="220" height="52" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
+  <text x="410" y="742" text-anchor="middle" fill="#1f2328" font-size="12">execute_tool</text>
+  <text x="410" y="759" text-anchor="middle" fill="#6b7280" font-size="11">其余 8 个工具</text>
+
+  <rect x="570" y="700" width="230" height="92" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
+  <text x="685" y="722" text-anchor="middle" fill="#1f2328" font-size="12">execute_tool_with_handlers</text>
+  <text x="685" y="742" text-anchor="middle" fill="#6b7280" font-size="11">check_permission · Pre/PostToolUse</text>
+  <text x="685" y="760" text-anchor="middle" fill="#6b7280" font-size="11">run_bash / run_read / run_write /</text>
+  <text x="685" y="776" text-anchor="middle" fill="#6b7280" font-size="11">run_edit / glob / todo / skill / task</text>
+
+  <rect x="300" y="796" width="220" height="44" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="410" y="815" text-anchor="middle" fill="#1f2328" font-size="12">tool 结果双写快照</text>
+  <text x="410" y="831" text-anchor="middle" fill="#6b7280" font-size="11">L1888-1894</text>
+
+  <rect x="570" y="620" width="230" height="52" rx="8" fill="#e3edfd" stroke="#3b82f6"/>
+  <text x="685" y="642" text-anchor="middle" fill="#1f2328" font-size="12">compactor.compact_history</text>
+  <text x="685" y="659" text-anchor="middle" fill="#6b7280" font-size="11">批次收尾统一执行 · 每 turn 1 次</text>
+
+  <line x1="135" y1="409" x2="135" y2="440" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="240" y1="466" x2="280" y2="466" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="135" y1="492" x2="135" y2="530" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="240" y1="556" x2="280" y2="556" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <line x1="530" y1="556" x2="580" y2="556" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="135" y1="582" x2="135" y2="620" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="135" y1="672" x2="135" y2="710" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="240" y1="726" x2="300" y2="672" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="240" y1="746" x2="300" y2="746" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="520" y1="746" x2="570" y2="746" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="410" y1="772" x2="410" y2="796" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrA)"/>
+  <line x1="520" y1="660" x2="570" y2="652" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text x="540" y="644" fill="#6b7280" font-size="10">批准后</text>
+
+  <rect x="10" y="870" width="960" height="290" rx="12" fill="none" stroke="#7c3aed" stroke-dasharray="5 4"/>
+  <text x="26" y="894" fill="#7c3aed" font-size="12">③ turn 结束 · 仅无 tool_calls 且 Stop Hook 放行时</text>
+
+  <rect x="30" y="912" width="210" height="52" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
+  <text x="135" y="934" text-anchor="middle" fill="#1f2328" font-size="12">trigger_hooks("Stop")</text>
+  <text x="135" y="951" text-anchor="middle" fill="#6b7280" font-size="11">要求继续 → 回到循环 ②</text>
+
+  <rect x="30" y="1000" width="210" height="52" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="135" y="1022" text-anchor="middle" fill="#1f2328" font-size="12">extract_memories  L837</text>
+  <text x="135" y="1039" text-anchor="middle" fill="#6b7280" font-size="11">输入 = 快照，非主历史</text>
+
+  <rect x="290" y="984" width="230" height="40" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="405" y="1003" text-anchor="middle" fill="#1f2328" font-size="11">dialogue_text → without_recalled_memory</text>
+  <text x="405" y="1017" text-anchor="middle" fill="#6b7280" font-size="10">剥离召回块防复读</text>
+
+  <rect x="290" y="1034" width="230" height="40" rx="8" fill="#fdf3e0" stroke="#f59e0b"/>
+  <text x="405" y="1053" text-anchor="middle" fill="#1f2328" font-size="11">memory_completion → extract_json_array</text>
+  <text x="405" y="1067" text-anchor="middle" fill="#6b7280" font-size="10">无工具 side-query</text>
+
+  <rect x="560" y="1000" width="220" height="52" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="670" y="1018" text-anchor="middle" fill="#1f2328" font-size="11">validate_memory_record</text>
+  <text x="670" y="1034" text-anchor="middle" fill="#1f2328" font-size="11">→ should_store_memory</text>
+  <text x="670" y="1048" text-anchor="middle" fill="#6b7280" font-size="10">确定性双重过滤</text>
+
+  <rect x="820" y="1004" width="140" height="44" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="890" y="1023" text-anchor="middle" fill="#1f2328" font-size="11">write_memory_file</text>
+  <text x="890" y="1039" text-anchor="middle" fill="#6b7280" font-size="10">重建索引</text>
+
+  <rect x="30" y="1084" width="210" height="52" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
+  <text x="135" y="1106" text-anchor="middle" fill="#1f2328" font-size="12">consolidate_memories L887</text>
+  <text x="135" y="1123" text-anchor="middle" fill="#6b7280" font-size="11">≥10 条 → 合并到 ≤8 · 失败回滚</text>
+
+  <rect x="290" y="1092" width="230" height="40" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
+  <text x="405" y="1116" text-anchor="middle" fill="#1f2328" font-size="12">return answer</text>
+
+  <line x1="135" y1="964" x2="135" y2="1000" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="145" y="988" fill="#6b7280" font-size="10">放行</text>
+  <line x1="240" y1="1016" x2="290" y2="1006" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrA)"/>
+  <line x1="240" y1="1036" x2="290" y2="1050" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrA)"/>
+  <line x1="520" y1="1030" x2="560" y2="1028" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrA)"/>
+  <line x1="780" y1="1026" x2="820" y2="1026" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrA)"/>
+  <line x1="135" y1="1052" x2="135" y2="1084" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="240" y1="1110" x2="290" y2="1112" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <line x1="130" y1="262" x2="130" y2="320" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="135" y1="762" x2="20" y2="762" stroke="#6b7280" stroke-width="1.5" fill="none" stroke-dasharray="4 3"/>
+  <line x1="20" y1="762" x2="20" y2="895" stroke="#6b7280" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <line x1="20" y1="895" x2="30" y2="920" stroke="#6b7280" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text x="30" y="782" fill="#6b7280" font-size="10">无 tool_calls</text>
+
+  <rect x="26" y="1186" width="12" height="12" rx="3" fill="#efe6fd" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="46" y="1196" fill="#6b7280" font-size="12">Memory 子系统（s09 新增）</text>
+  <rect x="246" y="1186" width="12" height="12" rx="3" fill="#e3edfd" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="266" y="1196" fill="#6b7280" font-size="12">Compact 子系统（s08）</text>
+  <rect x="436" y="1186" width="12" height="12" rx="3" fill="#f6f6f7" stroke="#d0d0d5" stroke-width="1.5"/>
+  <text x="456" y="1196" fill="#6b7280" font-size="12">工具 / hooks / 通用</text>
+  <rect x="606" y="1186" width="12" height="12" rx="3" fill="#fdf3e0" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="626" y="1196" fill="#6b7280" font-size="12">模型 API 调用</text>
+  <text x="26" y="1226" fill="#6b7280" font-size="11">s09 agent_loop 调用图 · code.py L1772-1901 · 行号对应当前版本</text>
+</svg>
