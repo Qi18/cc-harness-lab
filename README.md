@@ -100,6 +100,14 @@ ANALYSIS 文档中。例如 s09 的 Memory 对照见
 因此，本仓库目前只能与官方 s01–s11 对齐，不能被描述为官方完整实现，也不是 Claude
 Code 本体的等价替代。
 
+## Evaluation Plan
+
+项目已经记录完整的 Harness 评测方案，覆盖严格任务完成率、`pass@k` / `pass^k`、
+安全与权限、故障恢复、成本和延迟，以及 Compact、Memory、SubAgent、Task DAG 和
+Background 的专项指标。
+
+当前只固化方案；完成 s01–s17 和 Integrated Harness 后实施。详见 [EVALUATION.md](EVALUATION.md)。
+
 ## Current Stage
 
 ### `s01_agent_loop`
