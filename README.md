@@ -295,6 +295,9 @@ User Task
 │   └── code.py
 ├── s10_system_prompt/
 │   ├── README.md
+│   ├── ANALYSIS.md
+│   ├── CALLGRAPH.md
+│   ├── callgraph.svg
 │   ├── code.py
 │   └── harness/
 │       ├── agent_loop.py
@@ -314,6 +317,7 @@ User Task
 │   ├── README.md
 │   ├── ANALYSIS.md
 │   ├── CALLGRAPH.md
+│   ├── callgraph.svg
 │   ├── code.py
 │   └── harness/
 │       ├── agent_loop.py

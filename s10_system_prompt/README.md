@@ -40,9 +40,9 @@ s10 的做法是：Prompt 只由可观察运行态生成，每个片段都能指
 
 | 调用点 | 时机 | 作用 |
 | --- | --- | --- |
-| `__init__` L80 | Harness 装配完成 | 生成首版父 / 子 Prompt |
-| `agent_loop` L179 | user turn 开始 | 写回首条 system，再做 Memory 召回 |
-| `agent_loop` L205 | 每次模型调用前 | 先刷新 Prompt，再按预算压缩消息 |
+| `__init__` L81 | Harness 装配完成 | 生成首版父 / 子 Prompt |
+| `agent_loop` L217 | user turn 开始 | 写回首条 system，再做 Memory 召回 |
+| `agent_loop` L243 | 每次模型调用前 | 先刷新 Prompt，再按预算压缩消息 |
 | `_subagent_system_prompt` L134 | SubAgent 启动时 | 避免子循环用到过期目录 |
 
 每次刷新都会重扫 skills 目录，所以 Agent 自己刚写出的 `SKILL.md` 在下一次模型
@@ -70,20 +70,20 @@ s10_system_prompt/
     ├── config.py              58   环境变量、模型和工作区路径
     ├── models.py              24   跨模块数据契约
     ├── provider.py            46   百炼客户端、请求与响应适配
-    ├── agent_loop.py         292   01 Agent Loop：装配能力并驱动父循环
-    ├── tool_use.py           290   02 Tool Use：Schema、handler、执行管线
+    ├── agent_loop.py         300   01 Agent Loop：装配能力并驱动父循环
+    ├── tool_use.py           303   02 Tool Use：Schema、handler、执行管线
     ├── permission.py          85   03 Permission：deny / ask 决策
     ├── hooks.py               74   04 Hooks：生命周期事件注册与触发
-    ├── todo_write.py          40   05 TodoWrite：Todo 状态与校验
-    ├── subagent.py            67   06 SubAgent：隔离历史的同步子循环
+    ├── todo_write.py          46   05 TodoWrite：Todo 状态与校验
+    ├── subagent.py            72   06 SubAgent：隔离历史的同步子循环
     ├── skill_loading.py       99   07 Skill Loading：扫描、目录、按需加载
-    ├── context_compact.py    401   08 Context Compact：L1–L4 与手动 compact
+    ├── context_compact.py    404   08 Context Compact：L1–L4 与手动 compact
     ├── memory.py             540   09 Memory：召回、提取、整理与持久化
     ├── system_prompt.py      101   10 System Prompt：section 组装与缓存
     └── __init__.py            19   包门面
 ```
 
-合计 2193 行，其中 `harness/` 2136 行。章节编号只写在文档里，不写进文件名，这样
+合计 2228 行，其中 `harness/` 2171 行。章节编号只写在文档里，不写进文件名，这样
 既保留学习顺序，又避免将来调整章节或复用模块时重命名代码。
 
 ## 课程与代码的对应关系

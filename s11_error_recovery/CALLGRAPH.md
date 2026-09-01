@@ -93,7 +93,7 @@ SVG 沿用 s10 的制图约定：左列自上到下是父 Agent 的阶段，右�
 | `_execute_tool_batch` | L392 / L178 | 只维护协议与分发，返回控制信号 |
 | ↳ `CompactToolController.request` | L196 / context_compact.py L364 | 🔵 校验空参数、走 Hook、每 turn 限一次 |
 | ↳ `_execute_parent_tool` → `ToolExecutor.execute` | L203 / L174 / tool_use.py L153 | 解析 → PreToolUse → handler → PostToolUse |
-| ↳ `PermissionPolicy.check` | hooks.py L69 / permission.py L73 | 硬拒绝或交互确认，返回非 None 即短路 |
+| ↳ `PermissionPolicy.check` | hooks.py L70 / permission.py L73 | 硬拒绝或交互确认，返回非 None 即短路 |
 | `role=tool` 双写 | L210-L216 | 每个 `tool_call_id` 都要有配对结果 |
 | `compactor.compact_history` | L399-L402 / context_compact.py L274 | 🔵 批次收尾才真正改写历史 |
 

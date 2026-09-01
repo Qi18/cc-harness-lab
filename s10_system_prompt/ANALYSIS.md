@@ -35,7 +35,7 @@ s10 把这四类信息统一成命名 section，全部在每次模型调用前�
 
 ## 二、组装链
 
-`AgentHarness._prompt_context()`（agent_loop.py L98）负责收集运行态，它是 Prompt
+`AgentHarness._prompt_context()`（agent_loop.py L100）负责收集运行态，它是 Prompt
 与 Harness 之间唯一的耦合点：
 
 ```python
@@ -64,21 +64,21 @@ s10 把这四类信息统一成命名 section，全部在每次模型调用前�
 
 ## 三、刷新时机与顺序约束
 
-`refresh_system_prompts()`（agent_loop.py L110）是唯一刷新入口，四个调用点：
+`refresh_system_prompts()`（agent_loop.py L112）是唯一刷新入口，四个调用点：
 
 | 位置 | 时机 | 作用 |
 | --- | --- | --- |
-| L80 | `__init__` 末段 | 装配完成后生成首版父 / 子 Prompt |
-| L179 | `agent_loop` 进入时 | 写回 `messages[0]`，随后才做 Memory 召回 |
-| L205 | 每轮模型调用前 | 反映本轮最新工具、Skill、Memory 状态 |
+| L81 | `__init__` 末段 | 装配完成后生成首版父 / 子 Prompt |
+| L217 | `agent_loop` 进入时 | 写回 `messages[0]`，随后才做 Memory 召回 |
+| L243 | 每轮模型调用前 | 反映本轮最新工具、Skill、Memory 状态 |
 | L134 | `_subagent_system_prompt` | SubAgent 启动时取最新子 Prompt |
 
-它的内部顺序是：重扫 Skill（L114）→ 组装父 Prompt（L117）→ 组装子 Prompt
-（L120）→ 可选就地更新首条 system 消息（L127-L130）。
+它的内部顺序是：重扫 Skill（L116）→ 组装父 Prompt（L119）→ 组装子 Prompt
+（L122）→ 可选就地更新首条 system 消息（L129-L132）。
 
 两处顺序约束是这一章最容易忽略的实现细节：
 
-- **先刷新，再压缩。** L205 的刷新必须在 L206 的 `compactor.prepare()` 之前，
+- **先刷新，再压缩。** L243 的刷新必须在 L244 的 `compactor.prepare()` 之前，
   否则 s08 会按旧 Prompt 体积估算预算。
 - **只改写 `messages[0]`。** 存在 system 消息就原地替换，否则插入到最前；历史
   user 与 tool 消息一律不动，避免破坏 `tool_calls` / `role=tool` 的配对，
@@ -105,7 +105,7 @@ context → context_key(sort_keys JSON) → 与 _last_key 相同 ? 复用 : asse
 - 它只省掉字符串拼接，不省掉 `SkillLoader.scan()` 的磁盘扫描——扫描发生在
   缓存判定之前；
 - 它是 Harness 内部状态，与供应商侧的 Prompt Cache 无关；
-- 父子 assembler 各自独立（agent_loop.py L72、L75），身份、工具集和缓存互不
+- 父子 assembler 各自独立（agent_loop.py L73、L76），身份、工具集和缓存互不
   影响。
 
 ## 五、为什么模块按课程能力命名
@@ -124,11 +124,11 @@ context → context_key(sort_keys JSON) → 与 _last_key 相同 ? 复用 : asse
 ### tool_use.py 内部三层
 
 ```text
-PARENT_TOOLS / SUB_TOOLS   L129 / L136   模型可见的能力契约
+PARENT_TOOLS / SUB_TOOLS   L136 / L143   模型可见的能力契约
         ↓
-ToolExecutor               L140          JSON 解析 → Hook → dispatch
+ToolExecutor               L147          JSON 解析 → Hook → dispatch
         ↓
-BuiltinTools               L186          Bash / Read / Write / Edit / Glob / Skill
+BuiltinTools               L199          Bash / Read / Write / Edit / Glob / Skill
 ```
 
 改 schema 不会悄悄改变运行行为，改 handler 也不会自动向模型暴露新能力。父子
@@ -154,40 +154,41 @@ Agent 共用一个 `ToolExecutor`，只是传入不同的 handler 表和 `displa
 
 `install_default_hooks()`（hooks.py L40）把权限检查注册为第一个 PreToolUse
 回调（L70），再注册日志（L71）。注册顺序即行为顺序：`trigger()` 一旦有回调返回
-非 None 就短路（L35），所以权限拒绝会在日志与 handler 之前终止调用。Hook 还承载
+非 None 就短路（L36），所以权限拒绝会在日志与 handler 之前终止调用。Hook 还承载
 UserPromptSubmit、PostToolUse 观察与 Stop 续写，与权限是两个概念。
 
 ## 六、父循环怎么把十章串起来
 
 `agent_loop.py` 对应第一课，却是最终实现的 composition root。`__init__`
-（L44-L96）分五步装配：Skill / Todo / 基础工具 → Hook 与执行器 → compact 控制器
+（L44-L98）分五步装配：Skill / Todo / 基础工具 → Hook 与执行器 → compact 控制器
 与压缩器 → `memory.configure()` → 父子 Prompt assembler，最后才构造 SubAgent 与
 父 handler 表。
 
 一个 turn 的骨架：
 
 ```text
-agent_loop(messages, active_request)                      L163
-  → latest_user_request 兜底                              L172
-  → extraction_messages = deepcopy(messages[-12:])        L176
-  → refresh_system_prompts(messages)                      L179
-  → memory.load_memories / inject_recalled_memories       L180-L181
+agent_loop(messages, active_request)                      L201
+  → latest_user_request 兜底                              L210
+  → extraction_messages = deepcopy(messages[-12:])        L214
+  → refresh_system_prompts(messages)                      L217
+  → memory.load_memories / inject_recalled_memories       L218-L219
   while True:
-      → 连续 3 轮未 todo_write 则注入 reminder             L195
-      → refresh_system_prompts(messages)                  L205
-      → compactor.prepare(messages, active_request)        L206
-      → 本 turn 压缩过则从 tools 中移除 compact            L209
-      → completion_request → chat.completions.create       L219
-      → 溢出且未重试 ? reactive_compact + continue          L225-L233
-      → assistant 消息双写主历史与提取快照                 L239-L240
-      → 无 tool_calls ?                                    L243
-            Stop Hook 要求继续 ? 追加 user 并 continue      L247-L252
-            否则 extract_memories → consolidate → return   L255-L257
-      → 逐个 tool_call：                                    L267
-            compact → CompactToolController.request        L270
-            其他   → ToolExecutor.execute                   L278
-            每次都追加 role=tool 并同步快照                 L282-L288
-      → 整批写完后才 compact_history                        L289-L292
+      → 连续 3 轮未 todo_write 则注入 reminder             L233
+      → refresh_system_prompts(messages)                  L243
+      → compactor.prepare(messages, active_request)        L244
+      → 本 turn 压缩过则从 tools 中移除 compact            L245 / L139-L153
+      → completion_request → chat.completions.create       L248-L249
+      → 溢出且未重试 ? reactive_compact + continue          L252-L263
+      → assistant 消息双写主历史与提取快照                 L268-L269
+      → 无 tool_calls ?                                    L272
+            Stop Hook 要求继续 ? 追加 user 并 continue      L276-L281
+            否则 extract_memories → consolidate → return   L284-L286
+      → _execute_tool_batch(...)                           L290 / L160-L199
+            逐个 tool_call：                                L171
+            compact → CompactToolController.request        L178
+            其他   → ToolExecutor.execute                   L185
+            每次都追加 role=tool 并同步快照                 L192-L198
+      → 整批写完后才 compact_history                        L297-L300
 ```
 
 两个细节体现协议正确性：`compact` 不能当成普通 handler，因为它要改写整个
@@ -201,7 +202,7 @@ agent_loop(messages, active_request)                      L163
 `ToolExecutor`、基础 handler 表和一个 `prompt_supplier`。它看不到父 Agent 的
 `messages`、`TodoManager` 或 `ContextCompactor`。
 
-每个任务新建 `messages=[system, user]`（L40），并固定使用 `SUB_TOOLS`（L46）。
+每个任务新建 `messages=[system, user]`（L45），并固定使用 `SUB_TOOLS`（L51）。
 该集合不含 `todo_write`、`task`、`compact`，所以递归委派不是靠 Prompt 劝阻，
 而是在注册层直接排除。上限是 30 轮（L15），超出返回错误字符串而不是抛异常。
 
@@ -228,7 +229,7 @@ s10 对这层关系的唯一改动是入口：索引不再由 `build_memory_syst
 
 ## 九、行为不变量
 
-`tests/test_s10.py` 12 项测试同时覆盖新能力与旧约束：
+`tests/test_s10.py` 14 项测试同时覆盖新能力与旧约束：
 
 | 断言 | 位置 |
 | --- | --- |
@@ -240,9 +241,12 @@ s10 对这层关系的唯一改动是入口：索引不再由 `build_memory_syst
 | context 变化则重新组装 | L144 |
 | 刷新只替换首条 system，不增删消息 | L152 |
 | Agent Loop 真正发送组装结果 | L159 |
-| SubAgent 工具集隔离且 Prompt 无 `todo_write` | L212 |
-| 工作区边界与单一 `in_progress` 仍生效 | L224 |
+| 三个主要关注点都是真实模块的实例 | L175 |
 | 十个能力模块存在、旧碎片文件名消失 | L182 |
+| 工具路由保持私有，compact 压缩后不再可见 | L213 |
+| 工具批次返回控制信号并为每个调用配对结果 | L234 |
+| SubAgent 工具集隔离且 Prompt 无 `todo_write` | L266 |
+| 工作区边界与单一 `in_progress` 仍生效 | L278 |
 
 ## 十、权衡与已知遗留
 

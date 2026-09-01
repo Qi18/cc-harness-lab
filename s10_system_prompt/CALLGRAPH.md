@@ -2,7 +2,7 @@
 
 > 配套 [README.md](./README.md) 与 [ANALYSIS.md](./ANALYSIS.md) 阅读。
 > 本图描述 [harness/agent_loop.py](./harness/agent_loop.py) 中 `agent_loop`
-> （L163-L292）一次用户 turn 的完整调用关系，按"装配 → turn 开始 → 循环体 →
+> （L201-L300）一次用户 turn 的完整调用关系，按"装配 → turn 开始 → 循环体 →
 > turn 结束"四段组织。未标模块名的行号都属于 `agent_loop.py`。
 
 图例：🟢 Prompt 组装（s10 新增）；🟣 Memory 子系统（s09）；🔵 Compact 子系统
@@ -18,23 +18,23 @@
 
 | 调用 | 位置 | 作用 |
 |---|---|---|
-| `SkillLoader` / `TodoManager` / `BuiltinTools` | L51-L53 | 先建有状态能力 |
-| `install_default_hooks` → `ToolExecutor` | L57-L58 | Hook 必须早于执行器 |
-| `CompactToolController` / `ContextCompactor` | L61-L62 | 控制面与算法面分离 |
-| `memory.configure(settings)` | L69 | 把模块级 Memory 绑定到本 Harness |
-| 父 / 子 `SystemPromptAssembler` | L72-L77 | 身份不同，缓存也各自独立 |
-| `refresh_system_prompts()` | L80 | 生成首版 Prompt，供 `code.py` 建首条消息 |
-| `SubagentRunner(prompt_supplier=...)` | L85-L91 | 子 Agent 只拿到取 Prompt 的回调 |
+| `SkillLoader` / `TodoManager` / `BuiltinTools` | L52-L54 | 先建有状态能力 |
+| `install_default_hooks` → `ToolExecutor` | L58-L59 | Hook 必须早于执行器 |
+| `CompactToolController` / `ContextCompactor` | L62-L63 | 控制面与算法面分离 |
+| `memory.configure(settings)` | L70 | 把模块级 Memory 绑定到本 Harness |
+| 父 / 子 `SystemPromptAssembler` | L73-L78 | 身份不同，缓存也各自独立 |
+| `refresh_system_prompts()` | L81 | 生成首版 Prompt，供 `code.py` 建首条消息 |
+| `SubagentRunner(prompt_supplier=...)` | L86-L92 | 子 Agent 只拿到取 Prompt 的回调 |
 
 ### ① turn 开始：每 turn 恰好一次
 
 | 调用 | 位置 | 作用 |
 |---|---|---|
-| `latest_user_request` | L172 | `active_request` 未传时从历史尾部兜底 |
-| `copy.deepcopy(messages[-12:])` | L176 | 建立提取快照，与主历史隔离 |
-| `refresh_system_prompts(messages)` | L179 | 先把最新 Prompt 写回 `messages[0]` |
-| `memory.load_memories` | L180 / memory.py L303 | side-query 选最多 5 条 |
-| `memory.inject_recalled_memories` | L181 / memory.py L332 | 正文附加到最新 user turn |
+| `latest_user_request` | L210 | `active_request` 未传时从历史尾部兜底 |
+| `copy.deepcopy(messages[-12:])` | L214 | 建立提取快照，与主历史隔离 |
+| `refresh_system_prompts(messages)` | L217 | 先把最新 Prompt 写回 `messages[0]` |
+| `memory.load_memories` | L218 / memory.py L303 | side-query 选最多 5 条 |
+| `memory.inject_recalled_memories` | L219 / memory.py L332 | 正文附加到最新 user turn |
 
 顺序是刻意的：Prompt 刷新在召回之前，所以 memory section 反映的是本 turn 开始时
 的索引状态，而随后注入的 `<relevant-memories>` 正文只影响 user 消息。
@@ -43,14 +43,14 @@
 
 | 调用 | 位置 | 作用 |
 |---|---|---|
-| todo reminder 检查 | L195-L202 | 连续 3 轮未 `todo_write` 注入提醒 |
-| `refresh_system_prompts(messages)` | L205 | 反映本轮工具、Skill、Memory 状态 |
-| `compactor.prepare` | L206 / context_compact.py L315 | L3 → L1 → L2 → L4 |
-| 过滤 `compact` schema | L209-L216 | 本 turn 压缩过就不再暴露该工具 |
-| `provider.completion_request` | L220 / provider.py L32 | 收口模型专属参数 |
-| `chat.completions.create` | L219 | 🟠 主模型调用 |
-| `is_prompt_too_long_error` → `reactive_compact` | L225-L233 | 溢出兜底，最多重试 1 次 |
-| assistant 消息双写 | L239-L240 | 主历史 + 提取快照同步追加 |
+| todo reminder 检查 | L233-L240 | 连续 3 轮未 `todo_write` 注入提醒 |
+| `refresh_system_prompts(messages)` | L243 | 反映本轮工具、Skill、Memory 状态 |
+| `compactor.prepare` | L244 / context_compact.py L315 | L3 → L1 → L2 → L4 |
+| 过滤 `compact` schema | L245 / L139-L153 | 本 turn 压缩过就不再暴露该工具 |
+| `provider.completion_request` | L249 / provider.py L32 | 收口模型专属参数 |
+| `chat.completions.create` | L248 | 🟠 主模型调用 |
+| `is_prompt_too_long_error` → `reactive_compact` | L252-L263 | 溢出兜底，最多重试 1 次 |
+| assistant 消息双写 | L268-L269 | 主历史 + 提取快照同步追加 |
 
 刷新一定在 `prepare` 之前：否则压缩会按旧 Prompt 体积估算预算。
 
@@ -58,46 +58,47 @@
 
 | 调用 | 位置 | 作用 |
 |---|---|---|
-| `CompactToolController.request` | L270 / context_compact.py L379 | 校验空参数、走 Hook、每 turn 限一次 |
-| `ToolExecutor.execute` | L278 / tool_use.py L146 | 解析 → PreToolUse → handler → PostToolUse |
+| `CompactToolController.request` | L178 / context_compact.py L379 | 校验空参数、走 Hook、每 turn 限一次 |
+| `ToolExecutor.execute` | L185 / tool_use.py L153 | 解析 → PreToolUse → handler → PostToolUse |
 | ↳ `PermissionPolicy.check` | hooks.py L70 / permission.py L73 | 硬拒绝或交互确认，返回非 None 即短路 |
-| ↳ handler | L92-L96 / tool_use.py L282 | `BuiltinTools` / `TodoManager` / `SubagentRunner` |
-| `role=tool` 双写 | L282-L288 | 每个 `tool_call_id` 都要有配对结果 |
-| `compactor.compact_history` | L289-L292 / context_compact.py L274 | 批次收尾才真正改写历史 |
+| ↳ handler | L94-L98 / tool_use.py L295 | `BuiltinTools` / `TodoManager` / `SubagentRunner` |
+| `role=tool` 双写 | L192-L198 | 每个 `tool_call_id` 都要有配对结果 |
+| `compactor.compact_history` | L297-L300 / context_compact.py L274 | 批次收尾才真正改写历史 |
 
-`compact` 不能当普通 handler：它要替换整个 `messages`，所以在循环里内联拦截，
+这一段的行号属于 `_execute_tool_batch`（L160-L199），它被父循环在 L290 调用。
+`compact` 不能当普通 handler：它要替换整个 `messages`，所以在批次里内联拦截，
 并延迟到整批 `role=tool` 写完之后执行，避免留下不完整的 assistant / tool 协议组。
 
 ### ④ turn 结束：仅在给出最终回答时
 
 | 调用 | 位置 | 作用 |
 |---|---|---|
-| `hooks.trigger("Stop")` | L247 | 返回非 None 则追加 user 消息并回到 ② |
-| `memory.extract_memories` | L255 / memory.py L425 | 输入是快照，不受本 turn 压缩影响 |
-| `memory.consolidate_memories` | L256 / memory.py L476 | ≥10 条合并到 ≤8 条 |
-| `return answer` | L257 | 唯一的正常出口 |
+| `hooks.trigger("Stop")` | L276 | 返回非 None 则追加 user 消息并回到 ② |
+| `memory.extract_memories` | L284 / memory.py L425 | 输入是快照，不受本 turn 压缩影响 |
+| `memory.consolidate_memories` | L285 / memory.py L476 | ≥10 条合并到 ≤8 条 |
+| `return answer` | L286 | 唯一的正常出口 |
 
 ## Prompt 组装链
 
-`refresh_system_prompts`（L110）是唯一入口，四个调用点分布在三个阶段：
+`refresh_system_prompts`（L112）是唯一入口，四个调用点分布在三个阶段：
 
 | 调用点 | 阶段 | 说明 |
 |---|---|---|
-| L80 | ⓪ | 装配末段，`code.py` 据此构造首条 system 消息 |
-| L179 | ① | 每 turn 一次，写回 `messages[0]` |
-| L205 | ② | 每轮一次，且必须早于 `prepare` |
+| L81 | ⓪ | 装配末段，`code.py` 据此构造首条 system 消息 |
+| L217 | ① | 每 turn 一次，写回 `messages[0]` |
+| L243 | ② | 每轮一次，且必须早于 `prepare` |
 | L134 | — | `_subagent_system_prompt`，SubAgent 启动时取最新子 Prompt |
 
 内部链路：
 
 ```text
 skills.scan()                          skill_loading.py L49   每轮热发现
-  → _prompt_context(PARENT_TOOLS)      L98                    收集运行态
+  → _prompt_context(PARENT_TOOLS)      L100                   收集运行态
   → SystemPromptAssembler.get()        system_prompt.py L88
        → context_key(sort_keys JSON)   L45                    稳定序列化
        → 命中 ? cache_hits++ : assemble() L55
   → _prompt_context(SUB_TOOLS) → sub_prompt.get()             子 Agent 同源不同表
-  → messages[0]["content"] = system_prompt                    L127-L130
+  → messages[0]["content"] = system_prompt                    L129-L132
 ```
 
 ## 依赖层
