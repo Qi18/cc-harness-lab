@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="960" viewBox="0 0 1200 960" role="img" aria-labelledby="title desc">
+  <title id="title">s11 Error Recovery call graph</title>
+  <desc id="desc">Bounded recovery paths for transient errors, prompt overflow, and truncated output.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#64748b"/>
+    </marker>
+    <style>
+      .title { font: 700 28px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; }
+      .box-title { font: 700 17px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .box-text { font: 400 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #334155; }
+      .edge { stroke: #64748b; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .label { font: 600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="960" fill="#f8fafc"/>
+  <text x="600" y="48" text-anchor="middle" class="title">s11 · Error Recovery</text>
+  <text x="600" y="76" text-anchor="middle" class="subtitle">每个 user turn 一份 RecoveryState；所有恢复路径都有明确上限</text>
+
+  <rect x="430" y="110" width="340" height="78" rx="14" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+  <text x="600" y="140" text-anchor="middle" class="box-title">模型请求</text>
+  <text x="600" y="165" text-anchor="middle" class="box-text">primary model · max_tokens=8K</text>
+
+  <path class="edge" d="M600 188 L600 230"/>
+  <rect x="430" y="230" width="340" height="78" rx="14" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
+  <text x="600" y="260" text-anchor="middle" class="box-title">with_retry()</text>
+  <text x="600" y="285" text-anchor="middle" class="box-text">仅拦截 429 / 529；最多 10 次</text>
+
+  <path class="edge" d="M430 268 L195 268 L195 360"/>
+  <text x="290" y="254" text-anchor="middle" class="label">429 / 529</text>
+  <rect x="45" y="360" width="300" height="128" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="195" y="390" text-anchor="middle" class="box-title">瞬态错误</text>
+  <text x="195" y="416" text-anchor="middle" class="box-text">0.5s 指数退避，32s 封顶</text>
+  <text x="195" y="440" text-anchor="middle" class="box-text">Retry-After 优先 · 0–25% jitter</text>
+  <text x="195" y="464" text-anchor="middle" class="box-text">连续 3 次 529 → fallback</text>
+  <path class="edge" d="M195 360 L195 205 L430 205 L430 230"/>
+  <text x="300" y="196" text-anchor="middle" class="label">继续尝试</text>
+
+  <path class="edge" d="M770 268 L1005 268 L1005 360"/>
+  <text x="895" y="254" text-anchor="middle" class="label">prompt too long</text>
+  <rect x="855" y="360" width="300" height="128" rx="14" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+  <text x="1005" y="390" text-anchor="middle" class="box-title">Reactive Compact</text>
+  <text x="1005" y="416" text-anchor="middle" class="box-text">第一次：强制压缩后重试</text>
+  <text x="1005" y="440" text-anchor="middle" class="box-text">第二次：停止恢复</text>
+  <text x="1005" y="464" text-anchor="middle" class="box-text">每个 turn 最多执行一次</text>
+  <path class="edge" d="M1005 360 L1005 205 L770 205 L770 230"/>
+  <text x="900" y="196" text-anchor="middle" class="label">压缩成功后重试</text>
+
+  <path class="edge" d="M600 308 L600 356"/>
+  <text x="620" y="340" class="label">响应成功</text>
+  <rect x="430" y="356" width="340" height="92" rx="14" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="600" y="389" text-anchor="middle" class="box-title">检查 finish_reason</text>
+  <text x="600" y="416" text-anchor="middle" class="box-text">stop / length / max_tokens</text>
+
+  <path class="edge" d="M520 448 L410 540"/>
+  <text x="440" y="500" class="label">首次截断</text>
+  <rect x="235" y="540" width="320" height="126" rx="14" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="395" y="570" text-anchor="middle" class="box-title">8K → 64K</text>
+  <text x="395" y="596" text-anchor="middle" class="box-text">丢弃不完整 assistant</text>
+  <text x="395" y="620" text-anchor="middle" class="box-text">不执行可能残缺的 tool_calls</text>
+  <text x="395" y="644" text-anchor="middle" class="box-text">使用原消息历史重放请求</text>
+  <path class="edge" d="M235 603 L130 603 L130 150 L430 150"/>
+
+  <path class="edge" d="M680 448 L790 540"/>
+  <text x="715" y="500" class="label">64K 后仍截断</text>
+  <rect x="645" y="540" width="320" height="126" rx="14" fill="#fce7f3" stroke="#db2777" stroke-width="2"/>
+  <text x="805" y="570" text-anchor="middle" class="box-title">Continuation</text>
+  <text x="805" y="596" text-anchor="middle" class="box-text">保存当前纯文本片段</text>
+  <text x="805" y="620" text-anchor="middle" class="box-text">追加 continuation user 消息</text>
+  <text x="805" y="644" text-anchor="middle" class="box-text">最多 3 次，然后返回最后片段</text>
+  <path class="edge" d="M965 603 L1070 603 L1070 150 L770 150"/>
+
+  <path class="edge" d="M600 448 L600 730"/>
+  <text x="620" y="505" class="label">完整响应</text>
+  <rect x="430" y="730" width="340" height="90" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="600" y="764" text-anchor="middle" class="box-title">正常 Agent Loop</text>
+  <text x="600" y="790" text-anchor="middle" class="box-text">写 assistant → 工具批次或最终答案</text>
+
+  <rect x="430" y="864" width="340" height="60" rx="14" fill="#e2e8f0" stroke="#475569" stroke-width="2"/>
+  <text x="600" y="900" text-anchor="middle" class="box-title">恢复耗尽 → assistant Error</text>
+  <path class="edge" d="M195 488 L195 894 L430 894"/>
+  <path class="edge" d="M1005 488 L1005 894 L770 894"/>
+</svg>
