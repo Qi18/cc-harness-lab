@@ -1,85 +1,154 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="960" viewBox="0 0 1200 960" role="img" aria-labelledby="title desc">
-  <title id="title">s11 Error Recovery call graph</title>
-  <desc id="desc">Bounded recovery paths for transient errors, prompt overflow, and truncated output.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1100" viewBox="0 0 1280 1100">
   <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L9,3 z" fill="#64748b"/>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#667085"/>
+    </marker>
+    <marker id="arrow-light" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#98a2b3"/>
     </marker>
     <style>
-      .title { font: 700 28px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
-      .subtitle { font: 400 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; }
-      .box-title { font: 700 17px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
-      .box-text { font: 400 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #334155; }
-      .edge { stroke: #64748b; stroke-width: 2; fill: none; marker-end: url(#arrow); }
-      .label { font: 600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; }
+      .title { font: 700 20px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #101828; }
+      .subtitle { font: 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #667085; }
+      .legend { font: 12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #475467; }
+      .box-title { font: 700 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #101828; }
+      .box-text { font: 12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #475467; }
+      .edge-label { font: 11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #667085; }
+      .edge { stroke: #667085; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+      .edge-plain { stroke: #667085; stroke-width: 1.5; fill: none; }
+      .link { stroke: #98a2b3; stroke-width: 1.1; fill: none; stroke-dasharray: 4 4; marker-end: url(#arrow-light); }
+      .stage { fill: #f9fafb; stroke: #98a2b3; }
+      .decision { fill: #ffffff; stroke: #667085; }
+      .recovery { fill: #fef3f2; stroke: #f97066; }
+      .prompt { fill: #ecfdf3; stroke: #32d583; }
+      .memory { fill: #f4f3ff; stroke: #9b8afb; }
+      .compact { fill: #eff8ff; stroke: #53b1fd; }
+      .model { fill: #fff4e5; stroke: #f79009; }
     </style>
   </defs>
 
-  <rect width="1200" height="960" fill="#f8fafc"/>
-  <text x="600" y="48" text-anchor="middle" class="title">s11 · Error Recovery</text>
-  <text x="600" y="76" text-anchor="middle" class="subtitle">每个 user turn 一份 RecoveryState；所有恢复路径都有明确上限</text>
+  <rect width="1280" height="1100" fill="#ffffff"/>
+  <text x="32" y="38" class="title">s11 一个 user turn 的调用图</text>
+  <text x="32" y="60" class="subtitle">左列是父 Agent 的五个阶段，红底为 s11 新增恢复分支；右列是被调用的子系统；未标模块名的行号属于 agent_loop.py。</text>
 
-  <rect x="430" y="110" width="340" height="78" rx="14" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
-  <text x="600" y="140" text-anchor="middle" class="box-title">模型请求</text>
-  <text x="600" y="165" text-anchor="middle" class="box-text">primary model · max_tokens=8K</text>
+  <rect x="32" y="76" width="14" height="14" rx="3" class="recovery"/>
+  <text x="52" y="88" class="legend">恢复分支（s11 新增）</text>
+  <rect x="200" y="76" width="14" height="14" rx="3" class="prompt"/>
+  <text x="220" y="88" class="legend">Prompt 组装（s10）</text>
+  <rect x="360" y="76" width="14" height="14" rx="3" class="memory"/>
+  <text x="380" y="88" class="legend">Memory（s09）</text>
+  <rect x="495" y="76" width="14" height="14" rx="3" class="compact"/>
+  <text x="515" y="88" class="legend">Compact（s08）</text>
+  <rect x="635" y="76" width="14" height="14" rx="3" class="model"/>
+  <text x="655" y="88" class="legend">模型 API 调用</text>
+  <rect x="765" y="76" width="14" height="14" rx="3" class="stage"/>
+  <text x="785" y="88" class="legend">循环阶段 / 工具与 Hook</text>
 
-  <path class="edge" d="M600 188 L600 230"/>
-  <rect x="430" y="230" width="340" height="78" rx="14" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
-  <text x="600" y="260" text-anchor="middle" class="box-title">with_retry()</text>
-  <text x="600" y="285" text-anchor="middle" class="box-text">仅拦截 429 / 529；最多 10 次</text>
+  <rect x="90" y="126" width="620" height="104" rx="10" class="stage"/>
+  <text x="110" y="152" class="box-title">⓪ 装配 · code.py → AgentHarness.__init__</text>
+  <text x="110" y="176" class="box-text">SkillLoader · TodoManager · BuiltinTools · HookManager · ToolExecutor</text>
+  <text x="110" y="196" class="box-text">CompactToolController · ContextCompactor · memory.configure · 父子 assembler (L99)</text>
+  <text x="110" y="216" class="box-text">sleep_fn / random_fn 可注入 (L58)：退避时钟与抖动在测试中确定化</text>
 
-  <path class="edge" d="M430 268 L195 268 L195 360"/>
-  <text x="290" y="254" text-anchor="middle" class="label">429 / 529</text>
-  <rect x="45" y="360" width="300" height="128" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
-  <text x="195" y="390" text-anchor="middle" class="box-title">瞬态错误</text>
-  <text x="195" y="416" text-anchor="middle" class="box-text">0.5s 指数退避，32s 封顶</text>
-  <text x="195" y="440" text-anchor="middle" class="box-text">Retry-After 优先 · 0–25% jitter</text>
-  <text x="195" y="464" text-anchor="middle" class="box-text">连续 3 次 529 → fallback</text>
-  <path class="edge" d="M195 360 L195 205 L430 205 L430 230"/>
-  <text x="300" y="196" text-anchor="middle" class="label">继续尝试</text>
+  <rect x="90" y="254" width="620" height="104" rx="10" class="stage"/>
+  <text x="110" y="280" class="box-title">① turn 开始 · 每 turn 一次</text>
+  <text x="110" y="304" class="box-text">latest_user_request (L243) · extraction_messages 快照 (L247)</text>
+  <text x="110" y="324" class="box-text">refresh_system_prompts (L250) → load_memories → inject (L251-L252)</text>
+  <text x="110" y="348" class="box-text">RecoveryState(current_model=settings.model) (L261)：恢复额度归零</text>
 
-  <path class="edge" d="M770 268 L1005 268 L1005 360"/>
-  <text x="895" y="254" text-anchor="middle" class="label">prompt too long</text>
-  <rect x="855" y="360" width="300" height="128" rx="14" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
-  <text x="1005" y="390" text-anchor="middle" class="box-title">Reactive Compact</text>
-  <text x="1005" y="416" text-anchor="middle" class="box-text">第一次：强制压缩后重试</text>
-  <text x="1005" y="440" text-anchor="middle" class="box-text">第二次：停止恢复</text>
-  <text x="1005" y="464" text-anchor="middle" class="box-text">每个 turn 最多执行一次</text>
-  <path class="edge" d="M1005 360 L1005 205 L770 205 L770 230"/>
-  <text x="900" y="196" text-anchor="middle" class="label">压缩成功后重试</text>
+  <rect x="90" y="382" width="620" height="164" rx="10" class="stage"/>
+  <text x="110" y="408" class="box-title">② 请求与瞬态恢复 · 每轮一次</text>
+  <text x="110" y="432" class="box-text">rounds_since_todo ≥ 3 → reminder (L266)</text>
+  <text x="110" y="452" class="box-text">refresh_system_prompts (L276) → compactor.prepare (L277) → 过滤 compact (L278)</text>
+  <rect x="104" y="460" width="592" height="24" rx="6" class="model"/>
+  <text x="110" y="477" class="box-text">with_retry (L282) → completion_request → chat.completions.create (L283)</text>
+  <rect x="104" y="490" width="592" height="44" rx="6" class="recovery"/>
+  <text x="110" y="507" class="box-text">429 / 529：退避 0.5→32s + jitter，Retry-After 优先，529×3 → fallback</text>
+  <text x="110" y="527" class="box-text">prompt too long：reactive_compact (L304) 重试，每 turn 一次；否则收口 (L313)</text>
 
-  <path class="edge" d="M600 308 L600 356"/>
-  <text x="620" y="340" class="label">响应成功</text>
-  <rect x="430" y="356" width="340" height="92" rx="14" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
-  <text x="600" y="389" text-anchor="middle" class="box-title">检查 finish_reason</text>
-  <text x="600" y="416" text-anchor="middle" class="box-text">stop / length / max_tokens</text>
+  <rect x="90" y="570" width="620" height="136" rx="10" class="stage"/>
+  <text x="110" y="596" class="box-title">③ 响应分类 · 完整性先于写入 (L322)</text>
+  <rect x="104" y="606" width="592" height="68" rx="6" class="recovery"/>
+  <text x="110" y="623" class="box-text">首次截断：max_tokens 8K → 64K，丢弃片段，用原历史重放 (L323-L331)</text>
+  <text x="110" y="643" class="box-text">已升级仍截断：存纯文本片段 + continuation，最多 3 条 (L333-L366)</text>
+  <text x="110" y="663" class="box-text">3 条用尽 → 返回最后片段；片段为空 → 显式错误 (L340-L353)</text>
+  <text x="110" y="692" class="box-text">完整 → assistant_payload 双写主历史与提取快照 (L369-L371)</text>
 
-  <path class="edge" d="M520 448 L410 540"/>
-  <text x="440" y="500" class="label">首次截断</text>
-  <rect x="235" y="540" width="320" height="126" rx="14" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
-  <text x="395" y="570" text-anchor="middle" class="box-title">8K → 64K</text>
-  <text x="395" y="596" text-anchor="middle" class="box-text">丢弃不完整 assistant</text>
-  <text x="395" y="620" text-anchor="middle" class="box-text">不执行可能残缺的 tool_calls</text>
-  <text x="395" y="644" text-anchor="middle" class="box-text">使用原消息历史重放请求</text>
-  <path class="edge" d="M235 603 L130 603 L130 150 L430 150"/>
+  <rect x="290" y="730" width="220" height="38" rx="10" class="decision"/>
+  <text x="400" y="754" text-anchor="middle" class="box-text">assistant.tool_calls ?</text>
 
-  <path class="edge" d="M680 448 L790 540"/>
-  <text x="715" y="500" class="label">64K 后仍截断</text>
-  <rect x="645" y="540" width="320" height="126" rx="14" fill="#fce7f3" stroke="#db2777" stroke-width="2"/>
-  <text x="805" y="570" text-anchor="middle" class="box-title">Continuation</text>
-  <text x="805" y="596" text-anchor="middle" class="box-text">保存当前纯文本片段</text>
-  <text x="805" y="620" text-anchor="middle" class="box-text">追加 continuation user 消息</text>
-  <text x="805" y="644" text-anchor="middle" class="box-text">最多 3 次，然后返回最后片段</text>
-  <path class="edge" d="M965 603 L1070 603 L1070 150 L770 150"/>
+  <rect x="90" y="792" width="620" height="132" rx="10" class="stage"/>
+  <text x="110" y="818" class="box-title">④ 工具批次 (L392)</text>
+  <text x="110" y="842" class="box-text">compact → CompactToolController.request (L196)</text>
+  <text x="110" y="862" class="box-text">其他工具 → _execute_parent_tool → ToolExecutor.execute (L203)</text>
+  <text x="110" y="882" class="box-text">每个 tool_call 追加 role=tool，并同步写入提取快照 (L210-L216)</text>
+  <text x="110" y="902" class="box-text">整批结果写完后才执行 compact_history (L399-L402)</text>
 
-  <path class="edge" d="M600 448 L600 730"/>
-  <text x="620" y="505" class="label">完整响应</text>
-  <rect x="430" y="730" width="340" height="90" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
-  <text x="600" y="764" text-anchor="middle" class="box-title">正常 Agent Loop</text>
-  <text x="600" y="790" text-anchor="middle" class="box-text">写 assistant → 工具批次或最终答案</text>
+  <rect x="90" y="948" width="620" height="112" rx="10" class="stage"/>
+  <text x="110" y="974" class="box-title">⑤ turn 结束 · 仅最终回答</text>
+  <text x="110" y="998" class="box-text">Stop Hook (L378)：要求继续则追加 user 消息并回到 ②</text>
+  <text x="110" y="1018" class="box-text">memory.extract_memories(快照) (L386) → consolidate_memories (L387)</text>
+  <text x="110" y="1038" class="box-text">return answer (L388)；三个恢复出口 (L313 · L353) 不走这里</text>
 
-  <rect x="430" y="864" width="340" height="60" rx="14" fill="#e2e8f0" stroke="#475569" stroke-width="2"/>
-  <text x="600" y="900" text-anchor="middle" class="box-title">恢复耗尽 → assistant Error</text>
-  <path class="edge" d="M195 488 L195 894 L430 894"/>
-  <path class="edge" d="M1005 488 L1005 894 L770 894"/>
+  <line x1="400" y1="230" x2="400" y2="252" class="edge"/>
+  <line x1="400" y1="358" x2="400" y2="380" class="edge"/>
+  <line x1="400" y1="546" x2="400" y2="568" class="edge"/>
+  <line x1="400" y1="706" x2="400" y2="728" class="edge"/>
+  <line x1="400" y1="768" x2="400" y2="790" class="edge"/>
+  <text x="408" y="786" class="edge-label">有</text>
+
+  <path d="M510 749 L736 749 L736 1004 L713 1004" class="edge"/>
+  <text x="516" y="742" class="edge-label">无 tool_calls</text>
+
+  <path d="M90 640 L62 640" class="edge-plain"/>
+  <path d="M90 860 L62 860 L62 400 L86 400" class="edge"/>
+  <text x="6" y="520" class="edge-label">回到 ②</text>
+
+  <rect x="800" y="126" width="450" height="170" rx="10" class="recovery"/>
+  <text x="820" y="152" class="box-title">error_recovery.py · 恢复策略（s11 新增）</text>
+  <text x="820" y="176" class="box-text">RecoveryState L30：6 个字段，与 turn 同生命周期</text>
+  <text x="820" y="196" class="box-text">with_retry L126：仅 429 / 529，最多 10 次尝试</text>
+  <text x="820" y="216" class="box-text">retry_delay L113：min(0.5·2^n, 32) + 0–25% jitter</text>
+  <text x="820" y="236" class="box-text">retry_after_seconds L98 优先；529×3 → fallback L155</text>
+  <text x="820" y="260" class="box-text">is_output_truncated L92 · is_prompt_too_long_error L75</text>
+  <text x="820" y="280" class="box-text">format_unrecoverable_error L187：详情截断到 1000 字符</text>
+
+  <rect x="800" y="320" width="450" height="108" rx="10" class="prompt"/>
+  <text x="820" y="346" class="box-title">system_prompt.py · Prompt 组装（s10）</text>
+  <text x="820" y="370" class="box-text">_prompt_context L118 → get() L88 → assemble() L55</text>
+  <text x="820" y="390" class="box-text">sections：identity · guidance · tools · workspace</text>
+  <text x="820" y="410" class="box-text">+ skills / + memory 仅在对应目录非空时出现</text>
+
+  <rect x="800" y="452" width="450" height="110" rx="10" class="compact"/>
+  <text x="820" y="478" class="box-title">context_compact.py · Compact 子系统（s08）</text>
+  <text x="820" y="502" class="box-text">prepare L315：L3 落盘 → L1 裁剪 → L2 占位 → L4 摘要</text>
+  <text x="820" y="522" class="box-text">reactive_compact L288：s11 每 turn 只允许调用一次</text>
+  <text x="820" y="542" class="box-text">compact_history L274 · CompactToolController.request L364</text>
+
+  <rect x="800" y="586" width="450" height="110" rx="10" class="memory"/>
+  <text x="820" y="612" class="box-title">memory.py · Memory 子系统（s09）</text>
+  <text x="820" y="636" class="box-text">load_memories L303 → inject_recalled_memories L332</text>
+  <text x="820" y="656" class="box-text">extract_memories L425 → consolidate_memories L476</text>
+  <text x="820" y="676" class="box-text">恢复失败的出口都不触发提取，失败不是长期事实</text>
+
+  <rect x="800" y="720" width="450" height="110" rx="10" class="stage"/>
+  <text x="820" y="746" class="box-title">tool_use.py / hooks.py / permission.py</text>
+  <text x="820" y="770" class="box-text">ToolExecutor.execute L153：JSON 解析 → ToolRequest</text>
+  <text x="820" y="790" class="box-text">PreToolUse：PermissionPolicy.check L73 → log_hook</text>
+  <text x="820" y="810" class="box-text">handler：BuiltinTools / TodoManager / SubagentRunner</text>
+
+  <rect x="800" y="854" width="450" height="110" rx="10" class="stage"/>
+  <text x="820" y="880" class="box-title">provider.py · 请求与响应适配</text>
+  <text x="820" y="904" class="box-text">completion_request L32：model / max_tokens 覆盖参数</text>
+  <text x="820" y="924" class="box-text">selected_model == kimi/kimi-k3 → reasoning_effort=max L50</text>
+  <text x="820" y="944" class="box-text">assistant_payload L23：只有完整 assistant 才序列化写回</text>
+
+  <path d="M710 330 L796 630" class="link"/>
+  <path d="M710 348 L796 240" class="link"/>
+  <path d="M710 452 L796 400" class="link"/>
+  <path d="M710 470 L796 500" class="link"/>
+  <path d="M710 512 L796 270" class="link"/>
+  <path d="M710 660 L796 290" class="link"/>
+  <path d="M710 692 L796 920" class="link"/>
+  <path d="M710 860 L796 770" class="link"/>
+  <path d="M710 1004 L796 670" class="link"/>
 </svg>
