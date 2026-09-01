@@ -56,6 +56,7 @@ class SkillLoader:
             if not directory.is_dir() or not manifest.is_file():
                 continue
             try:
+                # resolve 后再次检查根目录，阻止符号链接把 SKILL.md 指向目录外。
                 resolved = manifest.resolve()
                 resolved.relative_to(root)
                 raw = resolved.read_text(encoding="utf-8")
@@ -69,6 +70,7 @@ class SkillLoader:
             description = (
                 raw_description.strip() if isinstance(raw_description, str) else ""
             )
+            # 注册表保留完整正文，但 catalog() 只暴露名称和描述。
             registry[name] = {
                 "name": name,
                 "description": " ".join(description.split())
@@ -93,4 +95,5 @@ class SkillLoader:
         if record is None:
             available = ", ".join(self.registry) or "none"
             return f"Error: skill not found: {name.strip()}. Available: {available}"
+        # 只有显式调用 load_skill 时，完整 SKILL.md 才进入模型上下文。
         return record["content"]

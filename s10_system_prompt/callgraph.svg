@@ -1,203 +1,134 @@
-<svg viewBox="0 0 1000 1120" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, 'SF Mono', Consolas, monospace">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="960" viewBox="0 0 1280 960">
   <defs>
-    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M0,0 L10,5 L0,10 Z" fill="#6b7280"/>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#667085"/>
     </marker>
-    <marker id="arrP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M0,0 L10,5 L0,10 Z" fill="#0d9488"/>
+    <marker id="arrow-light" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#98a2b3"/>
     </marker>
-    <marker id="arrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M0,0 L10,5 L0,10 Z" fill="#7c3aed"/>
-    </marker>
+    <style>
+      .title { font: 700 20px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #101828; }
+      .subtitle { font: 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #667085; }
+      .legend { font: 12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #475467; }
+      .box-title { font: 700 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #101828; }
+      .box-text { font: 12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #475467; }
+      .edge-label { font: 11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #667085; }
+      .edge { stroke: #667085; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+      .link { stroke: #98a2b3; stroke-width: 1.1; fill: none; stroke-dasharray: 4 4; marker-end: url(#arrow-light); }
+      .stage { fill: #f9fafb; stroke: #98a2b3; }
+      .decision { fill: #ffffff; stroke: #667085; }
+      .prompt { fill: #ecfdf3; stroke: #32d583; }
+      .memory { fill: #f4f3ff; stroke: #9b8afb; }
+      .compact { fill: #eff8ff; stroke: #53b1fd; }
+      .model { fill: #fff4e5; stroke: #f79009; }
+    </style>
   </defs>
-  <rect x="0" y="0" width="1000" height="1120" fill="#ffffff"/>
 
-  <text x="26" y="30" fill="#1f2328" font-size="15">s10 AgentHarness 调用图 · agent.py L205-305 · System Prompt 由运行时状态组装</text>
+  <rect width="1280" height="960" fill="#ffffff"/>
+  <text x="32" y="38" class="title">s10 一个 user turn 的调用图</text>
+  <text x="32" y="60" class="subtitle">左列是父 Agent 的四个阶段，右列是被调用的子系统；未标模块名的行号属于 agent_loop.py。</text>
 
-  <rect x="10" y="48" width="980" height="228" rx="12" fill="none" stroke="#0d9488" stroke-dasharray="5 4"/>
-  <text x="26" y="70" fill="#0d9488" font-size="12">★ Prompt 组装链 · refresh_system_prompts（agent.py L79）· 四个调用点共用</text>
+  <rect x="32" y="76" width="14" height="14" rx="3" class="prompt"/>
+  <text x="52" y="88" class="legend">Prompt 组装（s10 新增）</text>
+  <rect x="212" y="76" width="14" height="14" rx="3" class="memory"/>
+  <text x="232" y="88" class="legend">Memory（s09）</text>
+  <rect x="342" y="76" width="14" height="14" rx="3" class="compact"/>
+  <text x="362" y="88" class="legend">Compact（s08）</text>
+  <rect x="472" y="76" width="14" height="14" rx="3" class="model"/>
+  <text x="492" y="88" class="legend">模型 API 调用</text>
+  <rect x="602" y="76" width="14" height="14" rx="3" class="stage"/>
+  <text x="622" y="88" class="legend">循环阶段 / 工具与 Hook</text>
 
-  <rect x="28" y="84" width="220" height="44" rx="8" fill="#d9f2ee" stroke="#0d9488"/>
-  <text x="138" y="102" text-anchor="middle" fill="#1f2328" font-size="11">skills.registry = skills.scan()</text>
-  <text x="138" y="118" text-anchor="middle" fill="#6b7280" font-size="10">每轮重扫磁盘 → Skill 热发现</text>
+  <rect x="90" y="126" width="620" height="84" rx="10" class="stage"/>
+  <text x="110" y="152" class="box-title">⓪ 装配 · code.py → AgentHarness.__init__</text>
+  <text x="110" y="176" class="box-text">SkillLoader · TodoManager · BuiltinTools · HookManager · ToolExecutor</text>
+  <text x="110" y="196" class="box-text">CompactToolController · ContextCompactor · memory.configure · 父子 assembler (L80)</text>
 
-  <rect x="286" y="84" width="250" height="44" rx="8" fill="#d9f2ee" stroke="#0d9488"/>
-  <text x="411" y="102" text-anchor="middle" fill="#1f2328" font-size="11">_prompt_context(tools) L69</text>
-  <text x="411" y="118" text-anchor="middle" fill="#6b7280" font-size="10">四项运行时事实打包成 dict</text>
+  <rect x="90" y="240" width="620" height="104" rx="10" class="stage"/>
+  <text x="110" y="266" class="box-title">① turn 开始 · 每 turn 一次</text>
+  <text x="110" y="290" class="box-text">latest_user_request (L172) · extraction_messages 快照 (L176)</text>
+  <text x="110" y="310" class="box-text">refresh_system_prompts(messages) (L179)</text>
+  <text x="110" y="330" class="box-text">memory.load_memories (L180) → inject_recalled_memories (L181)</text>
 
-  <rect x="574" y="70" width="400" height="72" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
-  <text x="774" y="88" text-anchor="middle" fill="#1f2328" font-size="11">enabled_tools = registered_tool_names(tools)  ← 注册表派生</text>
-  <text x="774" y="105" text-anchor="middle" fill="#1f2328" font-size="11">workspace = settings.workdir</text>
-  <text x="774" y="122" text-anchor="middle" fill="#1f2328" font-size="11">skill_catalog = skills.catalog() if registry else ""</text>
-  <text x="774" y="136" text-anchor="middle" fill="#7c3aed" font-size="11">memory_catalog = memory.read_memory_index()</text>
+  <rect x="90" y="374" width="620" height="124" rx="10" class="stage"/>
+  <text x="110" y="400" class="box-title">② 每轮模型调用前</text>
+  <text x="110" y="424" class="box-text">rounds_since_todo ≥ 3 → reminder (L195)</text>
+  <text x="110" y="444" class="box-text">refresh_system_prompts (L205) → compactor.prepare (L206) → 过滤 compact (L209)</text>
+  <rect x="104" y="452" width="592" height="24" rx="6" class="model"/>
+  <text x="110" y="469" class="box-text">completion_request → client.chat.completions.create (L219)</text>
+  <text x="110" y="492" class="box-text">上下文溢出 → reactive_compact，最多重试 1 次 (L225-L233)</text>
 
-  <rect x="286" y="152" width="250" height="44" rx="8" fill="#d9f2ee" stroke="#0d9488"/>
-  <text x="411" y="170" text-anchor="middle" fill="#1f2328" font-size="11">SystemPromptAssembler.get L84</text>
-  <text x="411" y="186" text-anchor="middle" fill="#6b7280" font-size="10">父/子两个独立实例，各自缓存</text>
+  <rect x="290" y="528" width="220" height="38" rx="10" class="decision"/>
+  <text x="400" y="552" text-anchor="middle" class="box-text">assistant.tool_calls ?</text>
 
-  <rect x="574" y="152" width="190" height="44" rx="8" fill="#d9f2ee" stroke="#0d9488"/>
-  <text x="669" y="170" text-anchor="middle" fill="#1f2328" font-size="11">context_key L44</text>
-  <text x="669" y="186" text-anchor="middle" fill="#6b7280" font-size="10">确定性 JSON，非 hash()</text>
+  <rect x="90" y="596" width="620" height="132" rx="10" class="stage"/>
+  <text x="110" y="622" class="box-title">③ 工具批次 (L267)</text>
+  <text x="110" y="646" class="box-text">compact → CompactToolController.request (L270)</text>
+  <text x="110" y="666" class="box-text">其他工具 → ToolExecutor.execute (L278)</text>
+  <text x="110" y="686" class="box-text">每个 tool_call 追加 role=tool，并同步写入提取快照 (L282-L288)</text>
+  <text x="110" y="706" class="box-text">整批结果写完后才执行 compact_history (L289-L292)</text>
 
-  <rect x="794" y="146" width="180" height="26" rx="6" fill="#f6f6f7" stroke="#d0d0d5"/>
-  <text x="884" y="164" text-anchor="middle" fill="#1f2328" font-size="11">key 相同 → cache_hits++</text>
+  <rect x="90" y="758" width="620" height="112" rx="10" class="stage"/>
+  <text x="110" y="784" class="box-title">④ turn 结束 · 仅最终回答</text>
+  <text x="110" y="808" class="box-text">Stop Hook (L247)：要求继续则追加 user 消息并回到 ②</text>
+  <text x="110" y="828" class="box-text">memory.extract_memories(快照) (L255) → consolidate_memories (L256)</text>
+  <text x="110" y="848" class="box-text">return answer (L257)</text>
 
-  <rect x="794" y="178" width="180" height="26" rx="6" fill="#d9f2ee" stroke="#0d9488"/>
-  <text x="884" y="196" text-anchor="middle" fill="#1f2328" font-size="11">key 变化 → assemble()</text>
+  <line x1="400" y1="210" x2="400" y2="238" class="edge"/>
+  <line x1="400" y1="344" x2="400" y2="372" class="edge"/>
+  <line x1="400" y1="498" x2="400" y2="526" class="edge"/>
+  <line x1="400" y1="566" x2="400" y2="594" class="edge"/>
+  <text x="408" y="586" class="edge-label">有</text>
 
-  <rect x="286" y="216" width="688" height="48" rx="8" fill="#d9f2ee" stroke="#0d9488"/>
-  <text x="630" y="234" text-anchor="middle" fill="#1f2328" font-size="11">assemble L53 → identity · guidance · tools · workspace ｜ skills（有 Skill 时）｜ memory（有索引时）</text>
-  <text x="630" y="252" text-anchor="middle" fill="#6b7280" font-size="10">last_sections 记录本次生效的 section 名 → 可断言的可观测量</text>
+  <path d="M510 547 L728 547 L728 814 L713 814" class="edge"/>
+  <text x="516" y="540" class="edge-label">无 tool_calls</text>
 
-  <rect x="28" y="152" width="220" height="112" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
-  <text x="138" y="172" text-anchor="middle" fill="#1f2328" font-size="11">四个调用点</text>
-  <text x="40" y="192" fill="#6b7280" font-size="10">① __init__ 末尾  L67（不传 messages）</text>
-  <text x="40" y="210" fill="#6b7280" font-size="10">② agent_loop 开头  L213</text>
-  <text x="40" y="228" fill="#6b7280" font-size="10">③ 每轮循环内  L228</text>
-  <text x="40" y="246" fill="#6b7280" font-size="10">④ spawn_subagent  L144（子 Prompt）</text>
-  <text x="40" y="260" fill="#0d9488" font-size="10">传 messages 时就地改写 messages[0]</text>
+  <path d="M90 690 L62 690 L62 436 L86 436" class="edge"/>
+  <text x="16" y="566" class="edge-label">下一轮</text>
 
-  <line x1="248" y1="106" x2="286" y2="106" stroke="#0d9488" stroke-width="1.5" marker-end="url(#arrP)"/>
-  <line x1="536" y1="106" x2="574" y2="106" stroke="#0d9488" stroke-width="1.5" marker-end="url(#arrP)"/>
-  <line x1="411" y1="128" x2="411" y2="152" stroke="#0d9488" stroke-width="1.5" marker-end="url(#arrP)"/>
-  <line x1="536" y1="174" x2="574" y2="174" stroke="#0d9488" stroke-width="1.5" marker-end="url(#arrP)"/>
-  <line x1="764" y1="168" x2="794" y2="160" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
-  <line x1="764" y1="180" x2="794" y2="190" stroke="#0d9488" stroke-width="1.5" marker-end="url(#arrP)"/>
-  <line x1="884" y1="204" x2="884" y2="216" stroke="#0d9488" stroke-width="1.5" marker-end="url(#arrP)"/>
-  <line x1="248" y1="200" x2="286" y2="180" stroke="#6b7280" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <rect x="800" y="126" width="450" height="170" rx="10" class="prompt"/>
+  <text x="820" y="152" class="box-title">system_prompt.py · Prompt 组装</text>
+  <text x="820" y="176" class="box-text">_prompt_context(tools)：enabled_tools / workspace /</text>
+  <text x="820" y="196" class="box-text">skill_catalog / memory_catalog（agent_loop L98）</text>
+  <text x="820" y="220" class="box-text">get() L88 → context_key(sort_keys JSON) L45</text>
+  <text x="820" y="240" class="box-text">命中 → cache_hits；未命中 → assemble() L55</text>
+  <text x="820" y="264" class="box-text">sections：identity · guidance · tools · workspace</text>
+  <text x="820" y="284" class="box-text">（+ skills / + memory，仅在目录非空时出现）</text>
 
-  <rect x="10" y="296" width="980" height="150" rx="12" fill="none" stroke="#7c3aed" stroke-dasharray="5 4"/>
-  <text x="26" y="318" fill="#7c3aed" font-size="12">① turn 开始（agent.py L211-221）</text>
+  <rect x="800" y="320" width="450" height="150" rx="10" class="memory"/>
+  <text x="820" y="346" class="box-title">memory.py · Memory 子系统</text>
+  <text x="820" y="370" class="box-text">load_memories L303 → select_relevant_memories L268</text>
+  <text x="820" y="390" class="box-text">失败降级 keyword_memory_selection L249</text>
+  <text x="820" y="410" class="box-text">inject_recalled_memories L332（&lt;relevant-memories&gt;）</text>
+  <text x="820" y="430" class="box-text">extract_memories L425 → write_memory_file L93</text>
+  <text x="820" y="450" class="box-text">consolidate_memories L476（≥10 条整理到 ≤8 条）</text>
 
-  <rect x="28" y="332" width="230" height="44" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
-  <text x="143" y="350" text-anchor="middle" fill="#1f2328" font-size="11">latest_user_request L211</text>
-  <text x="143" y="366" text-anchor="middle" fill="#6b7280" font-size="10">active_request 兜底</text>
+  <rect x="800" y="494" width="450" height="150" rx="10" class="compact"/>
+  <text x="820" y="520" class="box-title">context_compact.py · Compact 子系统</text>
+  <text x="820" y="544" class="box-text">prepare L315：L3 落盘 → L1 裁剪 → L2 占位 → L4 摘要</text>
+  <text x="820" y="564" class="box-text">compact_history L274：transcript + 摘要替换全历史</text>
+  <text x="820" y="584" class="box-text">reactive_compact L288：保留尾部 5 条消息</text>
+  <text x="820" y="604" class="box-text">CompactToolController.request L379：每 turn 只允许一次</text>
+  <text x="820" y="628" class="box-text">system_prefix L71 保证首条 System Prompt 不被丢弃</text>
 
-  <rect x="288" y="332" width="230" height="44" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
-  <text x="403" y="350" text-anchor="middle" fill="#1f2328" font-size="11">deepcopy(messages[-12:]) L212</text>
-  <text x="403" y="366" text-anchor="middle" fill="#6b7280" font-size="10">提取快照，与 Compact 解耦</text>
+  <rect x="800" y="668" width="450" height="130" rx="10" class="stage"/>
+  <text x="820" y="694" class="box-title">tool_use.py / hooks.py / permission.py</text>
+  <text x="820" y="718" class="box-text">ToolExecutor.execute L146：JSON 解析 → ToolRequest</text>
+  <text x="820" y="738" class="box-text">PreToolUse：PermissionPolicy.check → log_hook</text>
+  <text x="820" y="758" class="box-text">handler：BuiltinTools / TodoManager / SubagentRunner</text>
+  <text x="820" y="778" class="box-text">PostToolUse：output_hook（&gt;10k 字符额外提示）</text>
 
-  <rect x="548" y="332" width="230" height="44" rx="8" fill="#d9f2ee" stroke="#0d9488"/>
-  <text x="663" y="350" text-anchor="middle" fill="#1f2328" font-size="11">refresh_system_prompts L213</text>
-  <text x="663" y="366" text-anchor="middle" fill="#6b7280" font-size="10">写入 messages[0]</text>
+  <rect x="800" y="822" width="450" height="108" rx="10" class="stage"/>
+  <text x="820" y="848" class="box-title">subagent.py · SubAgent</text>
+  <text x="820" y="872" class="box-text">prompt_supplier() → refresh_system_prompts L134</text>
+  <text x="820" y="892" class="box-text">fresh messages=[system, user] · SUB_TOOLS（6 个）</text>
+  <text x="820" y="912" class="box-text">共享 ToolExecutor 与 Hooks；上限 30 轮</text>
 
-  <rect x="288" y="392" width="490" height="40" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
-  <text x="533" y="410" text-anchor="middle" fill="#1f2328" font-size="11">memory.load_memories L214 → inject_recalled_memories L215</text>
-  <text x="533" y="426" text-anchor="middle" fill="#6b7280" font-size="10">side-query 选 ≤5 条，注入最近 user 消息（不碰 system）</text>
-
-  <line x1="258" y1="354" x2="288" y2="354" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
-  <line x1="518" y1="354" x2="548" y2="354" stroke="#0d9488" stroke-width="1.5" marker-end="url(#arrP)"/>
-  <line x1="663" y1="376" x2="600" y2="392" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrM)"/>
-
-  <rect x="10" y="466" width="980" height="470" rx="12" fill="none" stroke="#3b82f6" stroke-dasharray="5 4"/>
-  <text x="26" y="488" fill="#3b82f6" font-size="12">② while True 循环体（agent.py L223-305）</text>
-
-  <rect x="28" y="502" width="250" height="42" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
-  <text x="153" y="520" text-anchor="middle" fill="#1f2328" font-size="11">todo reminder 检查 L224-227</text>
-  <text x="153" y="535" text-anchor="middle" fill="#6b7280" font-size="10">3 轮未 todo_write 则注入</text>
-
-  <rect x="28" y="562" width="250" height="46" rx="8" fill="#d9f2ee" stroke="#0d9488"/>
-  <text x="153" y="580" text-anchor="middle" fill="#1f2328" font-size="12">★ refresh_system_prompts L228</text>
-  <text x="153" y="597" text-anchor="middle" fill="#6b7280" font-size="10">每轮刷新：Skill/Memory 变化即时生效</text>
-
-  <rect x="318" y="562" width="250" height="46" rx="8" fill="#e3edfd" stroke="#3b82f6"/>
-  <text x="443" y="580" text-anchor="middle" fill="#1f2328" font-size="11">compactor.prepare L229</text>
-  <text x="443" y="597" text-anchor="middle" fill="#6b7280" font-size="10">L3 → L1 → L2 → L4；system 前缀不动</text>
-
-  <rect x="28" y="626" width="250" height="46" rx="8" fill="#fdf3e0" stroke="#f59e0b"/>
-  <text x="153" y="644" text-anchor="middle" fill="#1f2328" font-size="11">chat.completions.create L245</text>
-  <text x="153" y="661" text-anchor="middle" fill="#6b7280" font-size="10">tools=PARENT_TOOLS（已压缩则摘除 compact）</text>
-
-  <rect x="318" y="626" width="250" height="46" rx="8" fill="#e3edfd" stroke="#3b82f6"/>
-  <text x="443" y="644" text-anchor="middle" fill="#1f2328" font-size="11">is_prompt_too_long_error L249</text>
-  <text x="443" y="661" text-anchor="middle" fill="#6b7280" font-size="10">→ reactive_compact，最多 1 次</text>
-
-  <rect x="28" y="690" width="250" height="42" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
-  <text x="153" y="708" text-anchor="middle" fill="#1f2328" font-size="11">assistant 双写 L264-265</text>
-  <text x="153" y="723" text-anchor="middle" fill="#6b7280" font-size="10">messages + extraction 快照</text>
-
-  <rect x="28" y="750" width="250" height="42" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
-  <text x="153" y="768" text-anchor="middle" fill="#1f2328" font-size="11">有 tool_calls? L267</text>
-  <text x="153" y="783" text-anchor="middle" fill="#6b7280" font-size="10">无 → 进入 ③</text>
-
-  <rect x="318" y="700" width="250" height="46" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
-  <text x="443" y="718" text-anchor="middle" fill="#1f2328" font-size="11">request_manual_compact L286</text>
-  <text x="443" y="735" text-anchor="middle" fill="#6b7280" font-size="10">compact 内联特判 · 审批阶段</text>
-
-  <rect x="318" y="762" width="250" height="46" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
-  <text x="443" y="780" text-anchor="middle" fill="#1f2328" font-size="11">execute_tool L293</text>
-  <text x="443" y="797" text-anchor="middle" fill="#6b7280" font-size="10">其余 8 个工具</text>
-
-  <rect x="608" y="700" width="366" height="108" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
-  <text x="791" y="720" text-anchor="middle" fill="#1f2328" font-size="11">execute_with_handlers L97</text>
-  <text x="791" y="738" text-anchor="middle" fill="#6b7280" font-size="10">PreToolUse 权限 → handler → PostToolUse</text>
-  <text x="791" y="756" text-anchor="middle" fill="#6b7280" font-size="10">父：bash / read / write / edit / glob / todo_write / task</text>
-  <text x="791" y="774" text-anchor="middle" fill="#6b7280" font-size="10">子：五个基础工具 + load_skill（无 todo/task/compact）</text>
-  <text x="791" y="794" text-anchor="middle" fill="#0d9488" font-size="10">→ 与 tools section 声明的清单严格一致</text>
-
-  <rect x="318" y="828" width="250" height="42" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
-  <text x="443" y="846" text-anchor="middle" fill="#1f2328" font-size="11">tool 结果双写 L296-302</text>
-  <text x="443" y="861" text-anchor="middle" fill="#6b7280" font-size="10">沿用原 tool_call_id</text>
-
-  <rect x="28" y="828" width="250" height="42" rx="8" fill="#e3edfd" stroke="#3b82f6"/>
-  <text x="153" y="846" text-anchor="middle" fill="#1f2328" font-size="11">compact_history L303-305</text>
-  <text x="153" y="861" text-anchor="middle" fill="#6b7280" font-size="10">批次收尾 · 每 turn 1 次</text>
-
-  <rect x="608" y="562" width="366" height="110" rx="8" fill="#d9f2ee" stroke="#0d9488"/>
-  <text x="791" y="582" text-anchor="middle" fill="#1f2328" font-size="12">为什么每轮都刷 Prompt</text>
-  <text x="622" y="604" fill="#6b7280" font-size="10">模型可能在本 turn 内 write_file 建出新的 SKILL.md，</text>
-  <text x="622" y="622" fill="#6b7280" font-size="10">或触发记忆写入改变 MEMORY.md —— 下一轮就该看到。</text>
-  <text x="622" y="644" fill="#6b7280" font-size="10">状态没变时 context key 相同 → 命中缓存，仅省字符串拼接；</text>
-  <text x="622" y="662" fill="#0d9488" font-size="10">skills.scan() 在缓存上游，磁盘遍历每轮仍会发生。</text>
-
-  <line x1="153" y1="544" x2="153" y2="562" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
-  <line x1="278" y1="585" x2="318" y2="585" stroke="#0d9488" stroke-width="1.5" marker-end="url(#arrP)"/>
-  <line x1="568" y1="585" x2="608" y2="585" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrP)"/>
-  <line x1="153" y1="608" x2="153" y2="626" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
-  <line x1="278" y1="649" x2="318" y2="649" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)"/>
-  <line x1="153" y1="672" x2="153" y2="690" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
-  <line x1="153" y1="732" x2="153" y2="750" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
-  <line x1="278" y1="762" x2="318" y2="736" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
-  <line x1="278" y1="782" x2="318" y2="784" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
-  <line x1="568" y1="784" x2="608" y2="770" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
-  <line x1="443" y1="808" x2="443" y2="828" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrM)"/>
-  <line x1="318" y1="849" x2="278" y2="849" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)"/>
-  <line x1="28" y1="849" x2="18" y2="849" stroke="#6b7280" stroke-width="1.5" stroke-dasharray="4 3"/>
-  <line x1="18" y1="849" x2="18" y2="523" stroke="#6b7280" stroke-width="1.5" stroke-dasharray="4 3"/>
-  <line x1="18" y1="523" x2="28" y2="523" stroke="#6b7280" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)"/>
-
-  <rect x="10" y="956" width="980" height="106" rx="12" fill="none" stroke="#7c3aed" stroke-dasharray="5 4"/>
-  <text x="26" y="978" fill="#7c3aed" font-size="12">③ turn 结束 · 仅无 tool_calls 且 Stop Hook 放行（L267-277）</text>
-
-  <rect x="28" y="992" width="220" height="44" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
-  <text x="138" y="1010" text-anchor="middle" fill="#1f2328" font-size="11">hooks.trigger("Stop") L269</text>
-  <text x="138" y="1026" text-anchor="middle" fill="#6b7280" font-size="10">要求继续 → 回到 ②</text>
-
-  <rect x="278" y="992" width="240" height="44" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
-  <text x="398" y="1010" text-anchor="middle" fill="#1f2328" font-size="11">memory.extract_memories L275</text>
-  <text x="398" y="1026" text-anchor="middle" fill="#6b7280" font-size="10">输入是快照，不受 Compact 影响</text>
-
-  <rect x="548" y="992" width="240" height="44" rx="8" fill="#efe6fd" stroke="#7c3aed"/>
-  <text x="668" y="1010" text-anchor="middle" fill="#1f2328" font-size="11">consolidate_memories L276</text>
-  <text x="668" y="1026" text-anchor="middle" fill="#6b7280" font-size="10">写入后改变 MEMORY.md → 下轮 Prompt 更新</text>
-
-  <rect x="818" y="992" width="156" height="44" rx="8" fill="#f6f6f7" stroke="#d0d0d5"/>
-  <text x="896" y="1019" text-anchor="middle" fill="#1f2328" font-size="11">return answer</text>
-
-  <line x1="248" y1="1014" x2="278" y2="1014" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrM)"/>
-  <line x1="518" y1="1014" x2="548" y2="1014" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrM)"/>
-  <line x1="788" y1="1014" x2="818" y2="1014" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
-  <line x1="668" y1="992" x2="700" y2="880" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrP)"/>
-  <text x="704" y="930" fill="#0d9488" font-size="10">memory section 下轮变化</text>
-
-  <rect x="26" y="1082" width="12" height="12" rx="3" fill="#d9f2ee" stroke="#0d9488" stroke-width="1.5"/>
-  <text x="46" y="1092" fill="#6b7280" font-size="12">Prompt 组装（s10 新增）</text>
-  <rect x="216" y="1082" width="12" height="12" rx="3" fill="#efe6fd" stroke="#7c3aed" stroke-width="1.5"/>
-  <text x="236" y="1092" fill="#6b7280" font-size="12">Memory（s09）</text>
-  <rect x="376" y="1082" width="12" height="12" rx="3" fill="#e3edfd" stroke="#3b82f6" stroke-width="1.5"/>
-  <text x="396" y="1092" fill="#6b7280" font-size="12">Compact（s08）</text>
-  <rect x="536" y="1082" width="12" height="12" rx="3" fill="#fdf3e0" stroke="#f59e0b" stroke-width="1.5"/>
-  <text x="556" y="1092" fill="#6b7280" font-size="12">模型 API 调用</text>
-  <rect x="696" y="1082" width="12" height="12" rx="3" fill="#f6f6f7" stroke="#d0d0d5" stroke-width="1.5"/>
-  <text x="716" y="1092" fill="#6b7280" font-size="12">工具 / hooks / 通用</text>
+  <path d="M710 168 L796 172" class="link"/>
+  <path d="M710 300 L796 214" class="link"/>
+  <path d="M710 430 L796 250" class="link"/>
+  <path d="M710 322 L796 356" class="link"/>
+  <path d="M710 470 L796 542" class="link"/>
+  <path d="M710 690 L796 716" class="link"/>
+  <path d="M710 800 L796 440" class="link"/>
 </svg>

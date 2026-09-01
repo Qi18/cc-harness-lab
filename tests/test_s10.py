@@ -9,13 +9,15 @@ REPO_ROOT = Path(__file__).parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from s10_system_prompt.harness import memory
-from s10_system_prompt.harness.agent import AgentHarness
+from s10_system_prompt.harness.agent_loop import AgentHarness
 from s10_system_prompt.harness.config import Settings
-from s10_system_prompt.harness.prompt import (
+from s10_system_prompt.harness.subagent import SubagentRunner
+from s10_system_prompt.harness.system_prompt import (
     SystemPromptAssembler,
     registered_tool_names,
 )
-from s10_system_prompt.harness.tools import PARENT_TOOLS, SUB_TOOLS
+from s10_system_prompt.harness.todo_write import TodoManager
+from s10_system_prompt.harness.tool_use import PARENT_TOOLS, SUB_TOOLS, ToolExecutor
 
 
 class FakeMessage:
@@ -170,10 +172,113 @@ class SystemPromptTest(unittest.TestCase):
         self.assertEqual(harness.system_prompt, sent)
         self.assertIn("Available tools:", sent)
 
+    def test_major_concerns_are_real_modules(self):
+        harness, _ = self.harness()
+        self.assertIsInstance(harness.executor, ToolExecutor)
+        self.assertIsInstance(harness.subagent, SubagentRunner)
+        self.assertIsInstance(harness.todo, TodoManager)
+
+
+    def test_modules_follow_course_capability_names(self):
+        harness_dir = REPO_ROOT / "s10_system_prompt" / "harness"
+        module_names = {path.name for path in harness_dir.glob("*.py")}
+        expected = {
+            "agent_loop.py",
+            "tool_use.py",
+            "permission.py",
+            "hooks.py",
+            "todo_write.py",
+            "subagent.py",
+            "skill_loading.py",
+            "context_compact.py",
+            "memory.py",
+            "system_prompt.py",
+        }
+        obsolete = {
+            "agent.py",
+            "client.py",
+            "compact_tool.py",
+            "compaction.py",
+            "execution.py",
+            "prompt.py",
+            "protocol.py",
+            "schemas.py",
+            "skills.py",
+            "todo.py",
+            "tools.py",
+        }
+        self.assertTrue(expected <= module_names)
+        self.assertTrue(obsolete.isdisjoint(module_names))
+
+    def test_agent_harness_keeps_tool_routing_private(self):
+        harness, _ = self.harness()
+        legacy = {
+            "execute_with_handlers",
+            "execute_tool",
+            "execute_sub_tool",
+            "spawn_subagent",
+            "request_manual_compact",
+        }
+        self.assertTrue(legacy.isdisjoint(dir(harness)))
+        self.assertIn("task", harness._parent_handlers)
+        self.assertNotIn("task", harness.subagent.handlers)
+        visible_before = {
+            tool["function"]["name"] for tool in harness._visible_parent_tools(False)
+        }
+        visible_after = {
+            tool["function"]["name"] for tool in harness._visible_parent_tools(True)
+        }
+        self.assertIn("compact", visible_before)
+        self.assertNotIn("compact", visible_after)
+
+    def test_tool_batch_returns_control_signals_and_pairs_results(self):
+        harness, _ = self.harness()
+
+        def tool_call(call_id, name, arguments):
+            return SimpleNamespace(
+                id=call_id,
+                function=SimpleNamespace(name=name, arguments=arguments),
+            )
+
+        calls = [
+            tool_call("todo-1", "todo_write", '{"todos": []}'),
+            tool_call("compact-1", "compact", "{}"),
+            tool_call("compact-2", "compact", "{}"),
+        ]
+        messages = []
+        extraction_messages = []
+        used_todo, compact_requested = harness._execute_tool_batch(
+            calls,
+            messages,
+            extraction_messages,
+            already_compacted=False,
+        )
+        self.assertTrue(used_todo)
+        self.assertTrue(compact_requested)
+        self.assertEqual(
+            ["todo-1", "compact-1", "compact-2"],
+            [item["tool_call_id"] for item in messages],
+        )
+        self.assertIn("already completed", messages[-1]["content"])
+        self.assertEqual(messages, extraction_messages)
+        self.assertIsNot(messages[0], extraction_messages[0])
+
+    def test_subagent_runner_uses_isolated_tool_set(self):
+        harness, completions = self.harness("subagent done")
+        self.assertEqual("subagent done", harness.subagent.run("Inspect one file."))
+        request = completions.requests[0]
+        names = [tool["function"]["name"] for tool in request["tools"]]
+        self.assertEqual(
+            ["bash", "read_file", "write_file", "edit_file", "glob", "load_skill"],
+            names,
+        )
+        self.assertEqual("system", request["messages"][0]["role"])
+        self.assertNotIn("todo_write", request["messages"][0]["content"])
+
     def test_previous_boundary_and_todo_rules_survive(self):
         harness, _ = self.harness()
         self.assertTrue(harness.builtins.run_read("../outside").startswith("Error:"))
-        result = harness.builtins.run_todo_write(
+        result = harness.todo.update(
             [
                 {"content": "one", "status": "in_progress"},
                 {"content": "two", "status": "in_progress"},

@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from pathlib import Path
 from typing import Any
 
 from openai import OpenAI
+from .hooks import HookManager
+from .models import ToolRequest
+
+
 
 class ContextCompactor:
     """Apply cheap structural compaction before using an LLM summary."""
@@ -356,7 +361,44 @@ def latest_user_request(messages: list[dict[str, Any]]) -> str:
         content = message.get("content")
         if message.get("role") != "user" or not isinstance(content, str):
             continue
-        if content.startswith(("<reminder>", "[Compacted]", "<task_notification>")):
+        if content.startswith("<reminder>") or content.startswith("[Compacted]"):
             continue
         return content
     return "Continue the current task."
+
+
+# 手动 compact 同样属于 s08，但保留独立控制器：
+# CompactToolController 决定工具请求是否允许压缩，
+# 上面的 ContextCompactor 决定如何压缩历史。
+class CompactToolController:
+    """Validate the compact control tool and report whether to compact."""
+
+    def __init__(self, hooks: HookManager):
+        self.hooks = hooks
+
+    def request(
+        self, arguments: str, already_compacted: bool
+    ) -> tuple[str, bool]:
+        try:
+            payload = json.loads(arguments)
+        except json.JSONDecodeError as exc:
+            return f"Error: invalid tool arguments: {exc}", False
+        if payload != {}:
+            return "Error: compact does not accept arguments", False
+        request = ToolRequest(name="compact", arguments={})
+        blocked = self.hooks.trigger("PreToolUse", request)
+        if blocked is not None:
+            return str(blocked), False
+        if already_compacted:
+            result = (
+                "Compaction already completed for this user turn. "
+                "Continue without requesting compact again."
+            )
+            self.hooks.trigger("PostToolUse", request, result)
+            return result, False
+        # 这里只返回是否允许压缩的决定，本身不改写历史：True 由父循环记为
+        # compact_requested，等同一批 tool_calls 的 role=tool 结果全部写完后，
+        # 才调用 compact_history，避免拆断 assistant/tool 协议组。
+        result = "Compaction requested after this tool batch."
+        self.hooks.trigger("PostToolUse", request, result)
+        return result, True

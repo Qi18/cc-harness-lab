@@ -1,87 +1,127 @@
-# s10 AgentHarness 调用图
+# s10 agent_loop 调用图
 
 > 配套 [README.md](./README.md) 与 [ANALYSIS.md](./ANALYSIS.md) 阅读。
-> 本图描述 [harness/agent.py](./harness/agent.py) 中 `AgentHarness.agent_loop`
-> （L205-305）一次用户 turn 的调用关系，并单列本章核心的 **Prompt 组装链**。
-> 行号对应各模块当前版本。
+> 本图描述 [harness/agent_loop.py](./harness/agent_loop.py) 中 `agent_loop`
+> （L163-L292）一次用户 turn 的完整调用关系，按"装配 → turn 开始 → 循环体 →
+> turn 结束"四段组织。未标模块名的行号都属于 `agent_loop.py`。
 
-图例：🟩 Prompt 组装（s10 新增）；🟣 Memory（s09）；🔵 Compact（s08）；
-🟠 模型 API 调用；⬜ 工具 / hooks / 通用逻辑。
+图例：🟢 Prompt 组装（s10 新增）；🟣 Memory 子系统（s09）；🔵 Compact 子系统
+（s08）；🟠 模型 API 调用；⬜ 循环阶段、工具与 Hook。
 
 ## 总览
 
-![s10 AgentHarness 调用图](./callgraph.svg)
+![s10 agent_loop 调用图](./callgraph.svg)
+
+## 四个阶段的要点
+
+### ⓪ 装配：composition root 只在这里执行
+
+| 调用 | 位置 | 作用 |
+|---|---|---|
+| `SkillLoader` / `TodoManager` / `BuiltinTools` | L51-L53 | 先建有状态能力 |
+| `install_default_hooks` → `ToolExecutor` | L57-L58 | Hook 必须早于执行器 |
+| `CompactToolController` / `ContextCompactor` | L61-L62 | 控制面与算法面分离 |
+| `memory.configure(settings)` | L69 | 把模块级 Memory 绑定到本 Harness |
+| 父 / 子 `SystemPromptAssembler` | L72-L77 | 身份不同，缓存也各自独立 |
+| `refresh_system_prompts()` | L80 | 生成首版 Prompt，供 `code.py` 建首条消息 |
+| `SubagentRunner(prompt_supplier=...)` | L85-L91 | 子 Agent 只拿到取 Prompt 的回调 |
+
+### ① turn 开始：每 turn 恰好一次
+
+| 调用 | 位置 | 作用 |
+|---|---|---|
+| `latest_user_request` | L172 | `active_request` 未传时从历史尾部兜底 |
+| `copy.deepcopy(messages[-12:])` | L176 | 建立提取快照，与主历史隔离 |
+| `refresh_system_prompts(messages)` | L179 | 先把最新 Prompt 写回 `messages[0]` |
+| `memory.load_memories` | L180 / memory.py L303 | side-query 选最多 5 条 |
+| `memory.inject_recalled_memories` | L181 / memory.py L332 | 正文附加到最新 user turn |
+
+顺序是刻意的：Prompt 刷新在召回之前，所以 memory section 反映的是本 turn 开始时
+的索引状态，而随后注入的 `<relevant-memories>` 正文只影响 user 消息。
+
+### ② 循环体：每次模型调用前重建 Prompt
+
+| 调用 | 位置 | 作用 |
+|---|---|---|
+| todo reminder 检查 | L195-L202 | 连续 3 轮未 `todo_write` 注入提醒 |
+| `refresh_system_prompts(messages)` | L205 | 反映本轮工具、Skill、Memory 状态 |
+| `compactor.prepare` | L206 / context_compact.py L315 | L3 → L1 → L2 → L4 |
+| 过滤 `compact` schema | L209-L216 | 本 turn 压缩过就不再暴露该工具 |
+| `provider.completion_request` | L220 / provider.py L32 | 收口模型专属参数 |
+| `chat.completions.create` | L219 | 🟠 主模型调用 |
+| `is_prompt_too_long_error` → `reactive_compact` | L225-L233 | 溢出兜底，最多重试 1 次 |
+| assistant 消息双写 | L239-L240 | 主历史 + 提取快照同步追加 |
+
+刷新一定在 `prepare` 之前：否则压缩会按旧 Prompt 体积估算预算。
+
+### ③ 工具批次：compact 是唯一例外
+
+| 调用 | 位置 | 作用 |
+|---|---|---|
+| `CompactToolController.request` | L270 / context_compact.py L379 | 校验空参数、走 Hook、每 turn 限一次 |
+| `ToolExecutor.execute` | L278 / tool_use.py L146 | 解析 → PreToolUse → handler → PostToolUse |
+| ↳ `PermissionPolicy.check` | hooks.py L70 / permission.py L73 | 硬拒绝或交互确认，返回非 None 即短路 |
+| ↳ handler | L92-L96 / tool_use.py L282 | `BuiltinTools` / `TodoManager` / `SubagentRunner` |
+| `role=tool` 双写 | L282-L288 | 每个 `tool_call_id` 都要有配对结果 |
+| `compactor.compact_history` | L289-L292 / context_compact.py L274 | 批次收尾才真正改写历史 |
+
+`compact` 不能当普通 handler：它要替换整个 `messages`，所以在循环里内联拦截，
+并延迟到整批 `role=tool` 写完之后执行，避免留下不完整的 assistant / tool 协议组。
+
+### ④ turn 结束：仅在给出最终回答时
+
+| 调用 | 位置 | 作用 |
+|---|---|---|
+| `hooks.trigger("Stop")` | L247 | 返回非 None 则追加 user 消息并回到 ② |
+| `memory.extract_memories` | L255 / memory.py L425 | 输入是快照，不受本 turn 压缩影响 |
+| `memory.consolidate_memories` | L256 / memory.py L476 | ≥10 条合并到 ≤8 条 |
+| `return answer` | L257 | 唯一的正常出口 |
 
 ## Prompt 组装链
 
-四个调用点共用同一条链路，区别只在传不传 `messages`：
+`refresh_system_prompts`（L110）是唯一入口，四个调用点分布在三个阶段：
 
-| 调用点 | 位置 | 传 `messages` | 目的 |
-|---|---|---|---|
-| `__init__` 末尾 | agent.py L67 | 否 | 填好 `self.system_prompt` / `self.sub_system_prompt` |
-| `agent_loop` 开头 | agent.py L213 | 是 | 写入 `messages[0]` |
-| **每轮循环内** | agent.py L228 | 是 | 本 turn 内状态变化即时生效 |
-| `spawn_subagent` | agent.py L144 | 否 | 子 Agent 自建 messages |
-
-链路本身（`refresh_system_prompts`，agent.py L79）：
-
-| 步骤 | 位置 | 说明 |
+| 调用点 | 阶段 | 说明 |
 |---|---|---|
-| `skills.registry = skills.scan()` | agent.py L83 | **每轮重扫磁盘**，Skill 可热发现 |
-| `_prompt_context(tools)` | agent.py L69 | 打包四项运行时事实 |
-| ↳ `registered_tool_names(tools)` | prompt.py L26 | 工具清单由注册表派生，不可能失真 |
-| ↳ `skills.catalog() if registry else ""` | agent.py L73-75 | 无 Skill 则不生成该 section |
-| ↳ `memory.read_memory_index()` | agent.py L76 | 无索引则不生成该 section |
-| `SystemPromptAssembler.get` | prompt.py L84 | 父/子两个独立实例，各自缓存 |
-| ↳ `context_key` | prompt.py L44 | 确定性 JSON（`sort_keys` + `default=str`），不用 `hash()` |
-| ↳ 命中 → `cache_hits++` / 未命中 → `assemble()` | prompt.py L86-92 | 两个计数器可断言 |
-| `assemble` | prompt.py L53 | identity · guidance · tools · workspace ｜ skills ｜ memory |
-| ↳ `last_sections` | prompt.py L81 | 本次生效的 section 名，可观测量 |
-| 写回 `messages[0]` | agent.py L92-95 | 首条不是 system 就 `insert(0, …)` |
+| L80 | ⓪ | 装配末段，`code.py` 据此构造首条 system 消息 |
+| L179 | ① | 每 turn 一次，写回 `messages[0]` |
+| L205 | ② | 每轮一次，且必须早于 `prepare` |
+| L134 | — | `_subagent_system_prompt`，SubAgent 启动时取最新子 Prompt |
 
-## 三个阶段的要点
+内部链路：
 
-### ① turn 开始
+```text
+skills.scan()                          skill_loading.py L49   每轮热发现
+  → _prompt_context(PARENT_TOOLS)      L98                    收集运行态
+  → SystemPromptAssembler.get()        system_prompt.py L88
+       → context_key(sort_keys JSON)   L45                    稳定序列化
+       → 命中 ? cache_hits++ : assemble() L55
+  → _prompt_context(SUB_TOOLS) → sub_prompt.get()             子 Agent 同源不同表
+  → messages[0]["content"] = system_prompt                    L127-L130
+```
 
-| 调用 | 位置 | 作用 |
+## 依赖层
+
+| 层 | 模块 | 内部依赖 |
 |---|---|---|
-| `latest_user_request` | agent.py L211 | `active_request` 未传时兜底 |
-| `copy.deepcopy(messages[-12:])` | agent.py L212 | 提取快照，与 Compact 解耦 |
-| `refresh_system_prompts(messages)` | agent.py L213 | 组装并写入 `messages[0]` |
-| `memory.load_memories` → `inject_recalled_memories` | agent.py L214-215 | 注入**最近 user 消息**，不碰 system |
+| L0 | `config.py`、`models.py`、`system_prompt.py` | 无 |
+| L1 | `provider.py`、`permission.py`、`skill_loading.py`、`todo_write.py` | L0 |
+| L2 | `hooks.py`（→ `permission`）、`memory.py`（→ `skill_loading`） | L0-L1 |
+| L3 | `tool_use.py`、`context_compact.py`（均 → `hooks`） | L0-L2 |
+| L4 | `subagent.py`（→ `tool_use`） | L0-L3 |
+| L5 | `agent_loop.py` | L0-L4，composition root |
 
-两条注入路径互不干扰：Prompt 刷新只改 `messages[0]`，记忆召回只改最后一条 user。
-
-### ② while True 循环体
-
-| 调用 | 位置 | 作用 |
-|---|---|---|
-| todo reminder 检查 | agent.py L224-227 | 3 轮未 `todo_write` 注入提醒 |
-| **`refresh_system_prompts(messages)`** | agent.py L228 | 每轮刷新；状态不变则命中缓存 |
-| `compactor.prepare` | agent.py L229 | s08 四层管线；system 前缀永不压缩 |
-| `chat.completions.create` | agent.py L245 | 已手动压缩过则从工具表摘除 `compact` |
-| `is_prompt_too_long_error` → `reactive_compact` | agent.py L249-256 | 溢出兜底，最多 1 次 |
-| assistant 消息双写 | agent.py L264-265 | 主历史 + 提取快照 |
-| `request_manual_compact` | agent.py L286 | `compact` 内联特判（要改 `messages` 本身） |
-| `execute_tool` → `execute_with_handlers` | agent.py L293 / L97 | PreToolUse → handler → PostToolUse |
-| tool 结果双写 | agent.py L296-302 | 沿用原 `tool_call_id` |
-| `compact_history` | agent.py L303-305 | 批次收尾统一执行 |
-
-### ③ turn 结束
-
-| 调用 | 位置 | 作用 |
-|---|---|---|
-| `hooks.trigger("Stop")` | agent.py L269 | 要求继续则回到 ② |
-| `memory.extract_memories` | agent.py L275 | 输入是快照，不受 Compact 影响 |
-| `memory.consolidate_memories` | agent.py L276 | 写入改变 `MEMORY.md` → **下一轮 memory section 随之更新** |
+课程编号是学习顺序，不是依赖层级：`agent_loop.py` 对应 s01，却位于最上层。
+下层模块都不导入 `AgentHarness`，因此依赖图无环。
 
 ## 三条贯穿性线索
 
-1. **Prompt 不能声称不存在的能力**：`tools` section 由 `PARENT_TOOLS` / `SUB_TOOLS`
-   派生，而 `execute_with_handlers` 分发的也正是同一份 handler 表。父子各用一个
-   assembler，子 Agent 的 Prompt 里不会出现 `todo_write` / `task` / `compact`。
-2. **缓存在扫描下游**：`skills.scan()` 和 `read_memory_index()` 每轮都执行，之后才
-   算 context key。命中缓存省下的是字符串拼接，不是磁盘 IO。
-3. **三个子系统各改各的消息位置**：Prompt 改 `messages[0]`、记忆召回改最后一条
-   user、Compact 重建整个列表但保留 system 前缀——互不覆盖是这一章能安全每轮刷新的
-   前提。
+1. **Prompt 是运行态的投影**：`enabled_tools` 来自 schema 注册表，`skill_catalog`
+   来自每轮扫盘，`memory_catalog` 来自 `MEMORY.md`。任何一处变化都会改变
+   `context_key`，下一次调用即重建；没有变化则复用字符串，只是仍要付一次扫盘成本。
+2. **双写快照**：`extraction_messages` 在 ① 建立，② 与 ③ 同步追加 assistant 与
+   tool 消息，④ 作为提取输入——主历史随时可能被 auto / reactive / manual Compact
+   有损重写，快照保证持久层看到本 turn 的原始细节。
+3. **协议组完整性**：L1 裁剪、reactive 压缩和手动 compact 都以 assistant tool
+   call 与其后连续 `role=tool` 为最小单元；`system_prefix`
+   （context_compact.py L71）确保替换全历史时首条 System Prompt 不被丢弃。

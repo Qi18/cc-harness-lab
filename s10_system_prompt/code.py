@@ -12,10 +12,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from s10_system_prompt.harness.agent import AgentHarness  # noqa: E402
-from s10_system_prompt.harness.config import Settings, create_client  # noqa: E402
-from s10_system_prompt.harness.prompt import SystemPromptAssembler  # noqa: E402
-from s10_system_prompt.harness.tools import (  # noqa: E402
+from s10_system_prompt.harness.agent_loop import AgentHarness  # noqa: E402
+from s10_system_prompt.harness.config import Settings  # noqa: E402
+from s10_system_prompt.harness.provider import create_client  # noqa: E402
+from s10_system_prompt.harness.system_prompt import SystemPromptAssembler  # noqa: E402
+from s10_system_prompt.harness.tool_use import (  # noqa: E402
     PARENT_TOOLS as TOOLS,
     SUB_TOOLS,
 )

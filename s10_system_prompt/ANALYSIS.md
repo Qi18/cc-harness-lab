@@ -1,181 +1,293 @@
-# s10 源码剖析：运行时 System Prompt 相对 s09 做了哪些修改
+# s10 源码分析：运行时 System Prompt
 
-> 配套 [README.md](./README.md) 阅读。本文基于 s09 单文件（1936 行）与 s10 harness
-> 包（56 行入口 + 10 个模块共 1951 行）的对比，回答一个问题：
-> **为了让 System Prompt 成为运行时状态的产物，harness 动了哪些地方，为什么这么动。**
-> 行号对应各模块当前版本。
+> 配套 [README.md](./README.md) 与 [CALLGRAPH.md](./CALLGRAPH.md) 阅读。
+> 行号对应 `s10_system_prompt/` 当前版本：`code.py` 57 行，`harness/` 14 个模块
+> 共 2136 行。
 
-## 一、修改总览
+## 一、这一章真正新增了什么
 
-s09 的全部能力（权限、Hooks、Todo、SubAgent、Skills、四层压缩、Memory）逐条保留。
-s10 做了两件互相支撑的事：**Prompt 动态化** + **单文件拆包**。
-
-| 类别 | 修改 | 位置 |
-|---|---|---|
-| 架构 | `code.py` 从 1936 行缩到 56 行，只做 CLI | [code.py](./code.py) |
-| | 新增 `harness/` 包：agent / prompt / tools / memory / compaction / hooks / skills / config / models | `harness/*.py` |
-| Prompt 子系统 | `SystemPromptAssembler`、四个身份/边界常量、`registered_tool_names` | prompt.py L9-96 |
-| 组装接入 | 父/子两个 assembler 实例、`_prompt_context`、`refresh_system_prompts` | agent.py L59-95 |
-| 执行逻辑 | `agent_loop` 每轮刷新 system message | agent.py L213, L228 |
-| 删除 | s09 的 `BASE_SYSTEM_PROMPT` / `build_system_prompt()` / 模块级 `SYSTEM_PROMPT` 常量 | — |
-
-`tests/test_s10.py` 9 个用例（已实测通过）。
-
-## 二、s09 的 Prompt 是怎么来的
-
-s09 把 Prompt 在**导入时**就定死：
-
-```python
-BASE_SYSTEM_PROMPT = ("You are a coding agent working in {WORKDIR}. …")   # 长字符串
-SKILL_REGISTRY = scan_skills()                    # 进程启动扫一次
-SYSTEM_PROMPT = build_system_prompt(BASE_SYSTEM_PROMPT)   # 模块级常量
-```
-
-只有 Memory 索引是动态的——`build_memory_system_prompt()` 每轮把 `MEMORY.md`
-拼到这个常量尾部。这带来四个具体问题（README 里列了，这里给出对应的代码原因）：
-
-| 问题 | s09 的成因 |
-|---|---|
-| Prompt 与真实工具不一致 | 工具清单写在散文里，`TOOLS` 列表改了 Prompt 不会跟着改 |
-| 没有 Skill 仍带 Skill 说明 | `build_system_prompt` 无条件拼接 `Available skills:`，空时是 `(no skills found)` |
-| 改一个能力容易碰坏其他约束 | 所有行为边界挤在一个长字符串里，没有边界 |
-| 无法判断一次变化来自哪 | Prompt 是不透明字符串，没有"哪些 section 生效"的可观测量 |
-
-还有一条 s09 的隐性限制：`SKILL_REGISTRY` 只在导入时扫一次，**运行中新建的 Skill
-不会被发现**。
-
-## 三、SystemPromptAssembler：命名 section
-
-`assemble()`（prompt.py [L53](./harness/prompt.py)）把 Prompt 拆成 `(名字, 正文)`
-的有序列表，前四段无条件生成、后两段按运行态决定：
-
-```python
-sections = [
-    ("identity",  self.identity),
-    ("guidance",  self.guidance),
-    ("tools",     f"Available tools: {tools}."),
-    ("workspace", f"Working directory: {context['workspace']}"),
-]
-if skill_catalog: sections.append(("skills",  …))
-if memory_catalog: sections.append(("memory", …))
-```
-
-两个关键点：
-
-**① 工具清单来自注册表本身**。`registered_tool_names`（[L26](./harness/prompt.py)）
-直接从 tool schema 里读 `function.name`，按注册顺序返回。Prompt 里说有什么工具，
-就是模型实际拿到什么工具——**不可能声称一个未注册的工具**。这是从"散文描述"变成
-"派生事实"。
-
-**② 条件 section 只看真实状态**。`_prompt_context`（agent.py [L69](./harness/agent.py)）
-里 `skill_catalog` 在 `self.skills.registry` 为空时给空串，`memory_catalog` 直接取
-`memory.read_memory_index()`（无索引时返回空串）。于是没有 Skill 的工作区不会看到
-`(no skills found)` 这种噪声，Prompt 短且全是有效信息。
-
-`last_sections` 记录本次实际生成了哪几段（[L81](./harness/prompt.py)），把"这次
-Prompt 由哪些运行时事实构成"变成**可断言的可观测量**——测试和排查都靠它。
-
-## 四、缓存与 context key
-
-`get()`（[L84](./harness/prompt.py)）是唯一对外入口：算 key、命中就返回缓存、
-未命中才 `assemble()`，并分别累加 `cache_hits` 和 `assembly_count`。
-
-key 的生成方式是刻意的（[L44](./harness/prompt.py)）：
-
-```python
-json.dumps(context, sort_keys=True, ensure_ascii=False,
-           separators=(",", ":"), default=str)
-```
-
-- **`sort_keys=True`**：dict 顺序不影响 key；
-- **`separators`**：去掉空格，key 更短；
-- **`default=str`**：`Path` 之类非 JSON 类型不会抛错；
-- **不用 `hash()`**：Python 的 `str.__hash__` 受 `PYTHONHASHSEED` 影响，**进程间不
-  稳定**。这里的 key 只在进程内比较，用 hash 也能工作，但确定性 JSON 让缓存行为可
-  复现、可断言，测试里能直接比对 key 字符串。
-
-README 里明确划了边界：**这个缓存只避免 Python 重复拼字符串，不等于供应商的 API
-prompt cache**。省下的是几十微秒的字符串拼接，不是 token 费用。
-
-### 缓存省不掉磁盘扫描
-
-值得注意的是 `refresh_system_prompts`（agent.py [L79](./harness/agent.py)）第一行：
-
-```python
-self.skills.registry = self.skills.scan()
-```
-
-**每轮都重新扫盘**，然后才算 key。所以：
-
-- 好处：运行中新建的 Skill 会被下一轮自动发现——修掉了 s09 "扫一次定终身"的限制；
-- 代价：缓存位于扫描**下游**，`scan()` 的目录遍历和 `SKILL.md` 读取每轮都会发生，
-  缓存只挡住了后面的字符串拼接。Skill 目录很大时这是每轮的固定 IO。
-
-同理 `memory.read_memory_index()` 每轮读一次 `MEMORY.md`。两者内容不变时 key 不变、
-命中缓存。
-
-## 五、父子双 assembler
-
-```python
-self.parent_prompt = SystemPromptAssembler(PARENT_IDENTITY, PARENT_GUIDANCE)
-self.sub_prompt    = SystemPromptAssembler(SUBAGENT_IDENTITY, SUBAGENT_GUIDANCE)
-```
-
-两个**独立实例**，各自持有自己的缓存，并用不同的工具列表生成 context
-（agent.py L84-89：`PARENT_TOOLS` vs `SUB_TOOLS`）。
-
-这不只是文案差异。父 Agent 的 guidance 提到 `task`、`todo_write`、compact 摘要；
-子 Agent 的 identity 明写 "do not delegate"。如果共用一个 assembler，子 Agent 的
-Prompt 里就会出现它**根本没有的工具**的使用说明——模型会尝试调用不存在的工具，
-拿到 `Error: unknown tool`。独立实例 + 独立工具列表让"Prompt 描述"和"实际能力"
-在父子两侧都严格对齐。
-
-顺带一提，两个 assembler 也让缓存互不干扰：父 Prompt 变化不会让子 Prompt 失效。
-
-## 六、refresh 的四个调用点
-
-| 位置 | 时机 | 传 `messages` 吗 |
-|---|---|---|
-| agent.py L67 | `__init__` 末尾 | 否——只填 `self.system_prompt` |
-| agent.py L213 | `agent_loop` 开头 | 是 |
-| agent.py L228 | **每轮循环内**，模型调用前 | 是 |
-| agent.py L144 | `spawn_subagent` 开头 | 否——子 Agent 自建 messages |
-
-传了 `messages` 时（[L90-95](./harness/agent.py)）会**就地改写** `messages[0]`；
-首条不是 system 就 `insert(0, …)`。两个设计细节：
-
-1. **只动 system message**，绝不改写历史 user/tool 记录——避免与 s09 的召回注入
-   （改最后一条 user）和 s08 的压缩（重建整个列表）互相踩踏；
-2. **每轮都刷**（L228）而不是每 turn 一次，因为一个 turn 内 Prompt 依赖的状态可能
-   变化：模型用 `write_file` 新建了一个 `SKILL.md`，下一轮就该看到它。
-
-## 七、与 Memory 的分工
-
-s10 没有改变 s09 的双路召回，只是把其中一路搬进了 section 体系：
+s10 的新能力不是"再写一段更长的固定 Prompt"，而是把 System Prompt 变成运行态的
+投影：
 
 ```text
-Memory 索引（metadata）→ memory section，常驻 System Prompt
-相关记忆完整正文       → s09 的 side-query 选择后注入最近 user 消息
+tools registry + workdir + skill catalog + memory index
+                        ↓
+              SystemPromptAssembler
+                        ↓
+                  messages[0]
 ```
 
-两者不会重复注入完整记录：section 里只有 `MEMORY.md` 的名称+描述，并附一句
-"Relevant full records are recalled separately"（prompt.py L78）。
+对比 s09 更能看清差别。s09 的 `BASE_SYSTEM_PROMPT`（s09/code.py L196）是模块级
+常量，工作区路径在 import 时插值，Skill 目录也在 import 时拼进 `SYSTEM_PROMPT`
+（L232），只有 Memory 索引会在每个 turn 重新追加（L1784）。工具能力则以散文方式
+手写在提示里，没有任何机制保证它与 `TOOLS` 一致。
 
-## 八、防御与权衡
+s10 把这四类信息统一成命名 section，全部在每次模型调用前从真实数据源重算：
 
-- **Prompt 不能撒谎**：工具 section 由注册表派生，是本章最硬的一条不变量；
-- **可观测**：`last_sections` / `assembly_count` / `cache_hits` 三个字段让"Prompt 为
-  什么变了"可断言，不用打印整段字符串对比；
-- **`invalidate()` 目前无调用方**（prompt.py L94）：预留给"外部强制重建"的场景，
-  当前所有失效都由 context key 变化自动触发；
-- **权衡：每轮扫盘**。换来 Skill 热发现，代价是每轮固定 IO。Skill 数量大时可以考虑
-  加 mtime 判断，但那会引入"改了内容没改 mtime"的新问题；
-- **权衡：section 顺序写死在 `assemble()` 里**。想调整顺序或插入新 section 必须改
-  这个函数，没有注册机制。对当前 6 个 section 是合适的简化。
+| section | 数据源 | 出现条件 |
+| --- | --- | --- |
+| identity | `PARENT_IDENTITY` / `SUBAGENT_IDENTITY` L9、L16 | 恒定 |
+| guidance | `PARENT_GUIDANCE` / `SUBAGENT_GUIDANCE` L10、L20 | 恒定 |
+| tools | `registered_tool_names()` L26 读 schema 注册表 | 恒定 |
+| workspace | `settings.workdir` | 恒定 |
+| skills | `SkillLoader.catalog()` skill_loading.py L83 | 注册表非空 |
+| memory | `memory.read_memory_index()` memory.py L159 | `MEMORY.md` 存在 |
 
-## 九、一句话总结
+## 二、组装链
 
-s10 把 System Prompt 从"导入时定死的长字符串"变成"运行时状态的纯函数"：
-工具清单由注册表派生因而不可能失真、Skill 与 Memory section 按真实存在与否出现、
-父子用独立 assembler 保证描述与能力对齐、确定性 JSON context key 让缓存可复现——
-**Prompt 不再是需要人工同步的文档，而是 harness 当前状态的投影**。
+`AgentHarness._prompt_context()`（agent_loop.py L98）负责收集运行态，它是 Prompt
+与 Harness 之间唯一的耦合点：
+
+```python
+{
+    "enabled_tools": registered_tool_names(tools),
+    "workspace": str(self.settings.workdir),
+    "skill_catalog": self.skills.catalog() if self.skills.registry else "",
+    "memory_catalog": memory.read_memory_index(),
+}
+```
+
+`SystemPromptAssembler.assemble()`（system_prompt.py L55）把 context 展开成
+`(name, text)` 序列：前四个 section 固定生成，Skill 与 Memory 只在对应字符串
+非空时追加，并把生效的 section 名记录到 `last_sections`（L85）。
+
+三点值得注意：
+
+1. **工具清单以 schema 为单一事实来源。** `registered_tool_names()` 直接读
+   `tool["function"]["name"]`，因此新增或删除工具不需要同步任何散文描述。
+2. **Skill 与 Memory 只进目录。** 两个 section 都只放名称与描述，并显式告诉模型
+   完整内容要另外获取：`load_skill` 取 SKILL.md 全文（skill_loading.py L91），
+   Memory 正文由 s09 召回后临时附加到 user turn（memory.py L332）。
+3. **`_prompt_context(tools)` 以工具集为参数。** 同一段代码传入 `PARENT_TOOLS` 或
+   `SUB_TOOLS` 就得到父或子 Agent 的上下文，父子差异集中在注册表而不是散落在
+   两份文案里。
+
+## 三、刷新时机与顺序约束
+
+`refresh_system_prompts()`（agent_loop.py L110）是唯一刷新入口，四个调用点：
+
+| 位置 | 时机 | 作用 |
+| --- | --- | --- |
+| L80 | `__init__` 末段 | 装配完成后生成首版父 / 子 Prompt |
+| L179 | `agent_loop` 进入时 | 写回 `messages[0]`，随后才做 Memory 召回 |
+| L205 | 每轮模型调用前 | 反映本轮最新工具、Skill、Memory 状态 |
+| L134 | `_subagent_system_prompt` | SubAgent 启动时取最新子 Prompt |
+
+它的内部顺序是：重扫 Skill（L114）→ 组装父 Prompt（L117）→ 组装子 Prompt
+（L120）→ 可选就地更新首条 system 消息（L127-L130）。
+
+两处顺序约束是这一章最容易忽略的实现细节：
+
+- **先刷新，再压缩。** L205 的刷新必须在 L206 的 `compactor.prepare()` 之前，
+  否则 s08 会按旧 Prompt 体积估算预算。
+- **只改写 `messages[0]`。** 存在 system 消息就原地替换，否则插入到最前；历史
+  user 与 tool 消息一律不动，避免破坏 `tool_calls` / `role=tool` 的配对，
+  也不会覆盖 s09 注入到 user turn 的 `<relevant-memories>` 块。
+
+每轮重扫 Skill 还带来一个有用的性质：Agent 自己刚写出的 `skills/x/SKILL.md`，
+在下一次模型调用时就会出现在 skills section 里。
+
+## 四、缓存语义
+
+`get()`（system_prompt.py L88）是一层薄缓存：
+
+```text
+context → context_key(sort_keys JSON) → 与 _last_key 相同 ? 复用 : assemble()
+```
+
+`context_key()`（L45）用 `sort_keys=True` 与 `default=str` 做稳定序列化，因此
+字典插入顺序变化不会造成无意义重建；`cache_hits` 与 `assembly_count`（L41-L42）
+把命中情况变成可断言的可观察量，测试正是据此验证缓存
+（test_s10.py L136、L144）。
+
+缓存的边界要说清楚：
+
+- 它只省掉字符串拼接，不省掉 `SkillLoader.scan()` 的磁盘扫描——扫描发生在
+  缓存判定之前；
+- 它是 Harness 内部状态，与供应商侧的 Prompt Cache 无关；
+- 父子 assembler 各自独立（agent_loop.py L72、L75），身份、工具集和缓存互不
+  影响。
+
+## 五、为什么模块按课程能力命名
+
+早期拆分偏工程组件：`schemas.py` + `execution.py` + `tools.py`、
+`compact_tool.py` + `compaction.py`、`client.py` + `protocol.py`。这些边界不算
+错，但回看某一课时要在多个文件之间跳转。现在按 s01–s10 的能力命名，一课对应
+一个模块，文件名不带 `s`：章节号用于学习导航，能力名用于代码引用。
+
+跨章节的 `config.py`、`models.py`、`provider.py` 保持基础设施身份。
+`models.py` 只有三个契约（`ToolRequest`、`TodoItem`、`SkillRecord`），是多数模块
+共同依赖的最小交集，因此不归入任何一课。
+
+合并不等于把代码搅在一起，模块内部仍保留原来的对象边界。
+
+### tool_use.py 内部三层
+
+```text
+PARENT_TOOLS / SUB_TOOLS   L129 / L136   模型可见的能力契约
+        ↓
+ToolExecutor               L140          JSON 解析 → Hook → dispatch
+        ↓
+BuiltinTools               L186          Bash / Read / Write / Edit / Glob / Skill
+```
+
+改 schema 不会悄悄改变运行行为，改 handler 也不会自动向模型暴露新能力。父子
+Agent 共用一个 `ToolExecutor`，只是传入不同的 handler 表和 `display_prefix`。
+
+### context_compact.py 的控制面与算法面
+
+- `CompactToolController`（L373）：校验 `compact({})` 必须为空参数、触发
+  PreToolUse / PostToolUse、并用 `already_compacted` 保证每个 user turn 最多
+  压缩一次；
+- `ContextCompactor`（L17）：L3 大结果落盘（L124）、L1 中段裁剪（L154）、
+  L2 旧工具结果占位（L192）、L4 摘要替换（L274）与 reactive 应急压缩（L288）。
+
+`prepare()`（L315）按 L3 → L1 → L2 顺序做便宜的结构压缩，只有估算仍超过
+`CONTEXT_CHAR_LIMIT` 才调用 L4；L4 连续失败三次（`MAX_COMPACT_FAILURES`）才向上
+抛异常，否则静默降级继续跑。
+
+### permission.py 与 hooks.py 为什么不合并
+
+`PermissionPolicy.check()`（permission.py L73）回答"这次调用能不能执行"：命中
+`DENY_LIST` 直接硬拒绝，写文件越界或危险 bash 走交互确认。`HookManager`
+（hooks.py L19）回答"生命周期事件有哪些订阅者"。
+
+`install_default_hooks()`（hooks.py L40）把权限检查注册为第一个 PreToolUse
+回调（L70），再注册日志（L71）。注册顺序即行为顺序：`trigger()` 一旦有回调返回
+非 None 就短路（L35），所以权限拒绝会在日志与 handler 之前终止调用。Hook 还承载
+UserPromptSubmit、PostToolUse 观察与 Stop 续写，与权限是两个概念。
+
+## 六、父循环怎么把十章串起来
+
+`agent_loop.py` 对应第一课，却是最终实现的 composition root。`__init__`
+（L44-L96）分五步装配：Skill / Todo / 基础工具 → Hook 与执行器 → compact 控制器
+与压缩器 → `memory.configure()` → 父子 Prompt assembler，最后才构造 SubAgent 与
+父 handler 表。
+
+一个 turn 的骨架：
+
+```text
+agent_loop(messages, active_request)                      L163
+  → latest_user_request 兜底                              L172
+  → extraction_messages = deepcopy(messages[-12:])        L176
+  → refresh_system_prompts(messages)                      L179
+  → memory.load_memories / inject_recalled_memories       L180-L181
+  while True:
+      → 连续 3 轮未 todo_write 则注入 reminder             L195
+      → refresh_system_prompts(messages)                  L205
+      → compactor.prepare(messages, active_request)        L206
+      → 本 turn 压缩过则从 tools 中移除 compact            L209
+      → completion_request → chat.completions.create       L219
+      → 溢出且未重试 ? reactive_compact + continue          L225-L233
+      → assistant 消息双写主历史与提取快照                 L239-L240
+      → 无 tool_calls ?                                    L243
+            Stop Hook 要求继续 ? 追加 user 并 continue      L247-L252
+            否则 extract_memories → consolidate → return   L255-L257
+      → 逐个 tool_call：                                    L267
+            compact → CompactToolController.request        L270
+            其他   → ToolExecutor.execute                   L278
+            每次都追加 role=tool 并同步快照                 L282-L288
+      → 整批写完后才 compact_history                        L289-L292
+```
+
+两个细节体现协议正确性：`compact` 不能当成普通 handler，因为它要改写整个
+`messages`，所以在工具循环里内联拦截并延迟到批次末尾执行；`extraction_messages`
+与主历史双写，保证 turn 结束时的 Memory 提取看到的是原始细节，而不是被压缩过的
+摘要。
+
+## 七、SubAgent 的隔离面与共享面
+
+`SubagentRunner`（subagent.py L18）构造时只拿到 client、settings、共享
+`ToolExecutor`、基础 handler 表和一个 `prompt_supplier`。它看不到父 Agent 的
+`messages`、`TodoManager` 或 `ContextCompactor`。
+
+每个任务新建 `messages=[system, user]`（L40），并固定使用 `SUB_TOOLS`（L46）。
+该集合不含 `todo_write`、`task`、`compact`，所以递归委派不是靠 Prompt 劝阻，
+而是在注册层直接排除。上限是 30 轮（L15），超出返回错误字符串而不是抛异常。
+
+共享的是工作区、Provider、`ToolExecutor` 与 `HookManager`，因此 Permission 对
+SubAgent 同样生效；`prompt_supplier` 每次调用都会先刷新，避免子 Agent 拿到过期的
+Skill / Memory 目录。
+
+## 八、Compact 与 Memory 的分工
+
+```text
+Context Compact（s08）        当前会话在预算内的任务连续性
+  ├─ transcript / 大结果落盘
+  ├─ L1–L4 结构压缩与摘要
+  └─ active_request 贯穿摘要
+
+Durable Memory（s09）         跨 turn、跨会话的稳定信息
+  ├─ 索引 metadata 进入 System Prompt（s10 变成 memory section）
+  ├─ 相关正文临时附加到最近 user 消息
+  └─ turn 结束后从独立快照提取、达阈值整理
+```
+
+s10 对这层关系的唯一改动是入口：索引不再由 `build_memory_system_prompt()` 拼接，
+而是作为 memory section 由 assembler 生成。
+
+## 九、行为不变量
+
+`tests/test_s10.py` 12 项测试同时覆盖新能力与旧约束：
+
+| 断言 | 位置 |
+| --- | --- |
+| 无 Skill / Memory 时只有四个固定 section | L85 |
+| 工具行来自真实注册表，父 9 子 6 | L96 |
+| Skill 出现后 skills section 才出现 | L108 |
+| memory section 只放目录，不含正文 | L122 |
+| context 不变则不重复组装 | L136 |
+| context 变化则重新组装 | L144 |
+| 刷新只替换首条 system，不增删消息 | L152 |
+| Agent Loop 真正发送组装结果 | L159 |
+| SubAgent 工具集隔离且 Prompt 无 `todo_write` | L212 |
+| 工作区边界与单一 `in_progress` 仍生效 | L224 |
+| 十个能力模块存在、旧碎片文件名消失 | L182 |
+
+## 十、权衡与已知遗留
+
+### 1. 课程模块更长
+
+`context_compact.py` 401 行、`memory.py` 540 行、`tool_use.py` 290 行都明显长于
+原来的碎片文件。这里优先优化"按一课连续阅读"，而不是让每个文件尽量短。
+
+### 2. Memory 仍是模块级状态
+
+`memory.configure(settings)`（memory.py L39）改写模块级 `WORKDIR`、`MEMORY_DIR`
+与 `MODEL`，因此同一进程内不适合并存两个使用不同记忆目录的 Harness。这是从单文件
+阶段继承下来的全局状态，尚未消除。
+
+### 3. Skill 每轮扫盘
+
+`refresh_system_prompts()` 每轮调用 `scan()`，热发现简单可靠，但 Skill 较多时
+产生固定 IO。可以引入 mtime 或目录版本缓存，代价是要处理时间戳不可靠的情况。
+
+### 4. Agent Loop 的公开边界
+
+Harness 的对外边界已经收紧：
+
+- 不再保留 `execute_with_handlers`、`execute_sub_tool`、`spawn_subagent`、
+  `request_manual_compact` 等兼容性转发入口；
+- 父工具路由表是私有的 `_parent_handlers`，普通工具通过
+  `_execute_parent_tool()` 交给 `ToolExecutor`；
+- `_execute_tool_batch()` 只维护 assistant/tool 协议并返回 Todo、Compact
+  控制信号；真正的工具实现仍在 `tool_use.py`，压缩算法仍在
+  `context_compact.py`，SubAgent 循环仍在 `subagent.py`。
+
+仍保留的无调用方实现有：
+
+- `memory.build_memory_system_prompt`（memory.py L321）被 system_prompt.py 的
+  memory section 取代；
+- `SystemPromptAssembler.invalidate`（system_prompt.py L99）没有调用方——目前
+  context key 变化即可自然失效，它是为将来强制重建预留的。
+
+## 十一、验证
+
+```bash
+python3 -m pytest -q tests/test_s10.py
+# 14 passed
+```
+
+`python3 s10_system_prompt/code.py` 启动时会打印 `sections=...`，可直接观察本次
+生效的 section 组合；写入一个新 Skill 或一条 Memory 后再看，能确认 Prompt 确实
+跟随运行态变化。

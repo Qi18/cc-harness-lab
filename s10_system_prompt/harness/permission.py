@@ -1,45 +1,21 @@
-"""Lifecycle hooks and the permission pipeline."""
+"""Permission decisions for tool requests."""
 
 from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 
 from .config import Settings
 from .models import ToolRequest
 
 
-HOOK_EVENTS = ("UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop")
-HookCallback = Callable[..., str | None]
-LARGE_OUTPUT_CHARS = 10_000
 DENY_LIST = ("sudo", "shutdown", "reboot", "mkfs", "dd if=", "> /dev/")
 
 
-class HookManager:
-    def __init__(self):
-        self.callbacks: dict[str, list[HookCallback]] = {
-            event: [] for event in HOOK_EVENTS
-        }
-
-    def register(self, event: str, callback: HookCallback) -> None:
-        if event not in self.callbacks:
-            raise ValueError(f"Unknown hook event: {event}")
-        self.callbacks[event].append(callback)
-
-    def trigger(self, event: str, *args: Any) -> str | None:
-        if event not in self.callbacks:
-            raise ValueError(f"Unknown hook event: {event}")
-        for callback in self.callbacks[event]:
-            result = callback(*args)
-            if result is not None:
-                return result
-        return None
-
-
 class PermissionPolicy:
+    """Deny forbidden actions and ask before sensitive ones."""
+
     def __init__(self, settings: Settings):
         self.settings = settings
 
@@ -95,6 +71,8 @@ class PermissionPolicy:
         return choice in {"y", "yes"}
 
     def check(self, request: ToolRequest) -> str | None:
+        # 硬拒绝命令不会询问用户；边界不那么确定的敏感操作走交互确认，
+        # 从而区分 deny 和 ask 两种权限语义。
         if request.name == "bash":
             command = request.arguments.get("command", "")
             reason = self.deny_reason(command if isinstance(command, str) else "")
@@ -105,38 +83,3 @@ class PermissionPolicy:
         if reason and not self.ask_user(request, reason):
             return f"Permission denied: {reason}"
         return None
-
-
-def install_default_hooks(
-    hooks: HookManager,
-    settings: Settings,
-) -> PermissionPolicy:
-    policy = PermissionPolicy(settings)
-
-    def context_hook(query: str) -> None:
-        print(f"\033[90m[HOOK] UserPromptSubmit: working in {settings.workdir}\033[0m")
-
-    def log_hook(request: ToolRequest) -> None:
-        payload = json.dumps(request.arguments, ensure_ascii=False)
-        print(f"\033[90m[HOOK] PreToolUse: {request.name}({payload})\033[0m")
-
-    def output_hook(request: ToolRequest, output: str) -> None:
-        size = len(str(output))
-        print(
-            f"\033[90m[HOOK] PostToolUse: {request.name} returned {size} chars\033[0m"
-        )
-        if size > LARGE_OUTPUT_CHARS:
-            print(
-                f"\033[90m[HOOK] PostToolUse: large output from {request.name}\033[0m"
-            )
-
-    def stop_hook(messages: list[dict[str, Any]]) -> None:
-        count = sum(message.get("role") == "tool" for message in messages)
-        print(f"\033[90m[HOOK] Stop: session used {count} tool calls\033[0m")
-
-    hooks.register("UserPromptSubmit", context_hook)
-    hooks.register("PreToolUse", policy.check)
-    hooks.register("PreToolUse", log_hook)
-    hooks.register("PostToolUse", output_hook)
-    hooks.register("Stop", stop_hook)
-    return policy

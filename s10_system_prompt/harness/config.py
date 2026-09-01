@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import load_dotenv
-from openai import OpenAI
 
 
 DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
@@ -18,6 +17,7 @@ DEFAULT_MODEL = "qwen-plus"
 class Settings:
     """All mutable paths and model settings for one harness instance."""
 
+    # Settings 只保存非敏感运行配置；API Key 始终从环境变量交给 Provider。
     workdir: Path
     skills_dir: Path
     transcript_dir: Path
@@ -30,6 +30,7 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         load_dotenv()
+        # workdir 是所有持久目录的默认根，后续安全检查也以它为边界。
         workdir = Path(os.getenv("CC_WORKDIR", os.getcwd())).expanduser().resolve()
         return cls(
             workdir=workdir,
@@ -55,13 +56,3 @@ class Settings:
         except ValueError as exc:
             raise ValueError(f"{label} escapes the working directory") from exc
         return resolved
-
-
-def create_client(settings: Settings) -> OpenAI:
-    """Create a Bailian OpenAI-compatible client without logging credentials."""
-    api_key = os.getenv("DASHSCOPE_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "Missing DASHSCOPE_API_KEY. Export it or place it in a local .env file."
-        )
-    return OpenAI(api_key=api_key, base_url=settings.base_url, timeout=150.0)

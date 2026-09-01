@@ -1,21 +1,23 @@
-"""Built-in file, shell, todo, skill, and control tools."""
+"""Tool schemas, handlers, and the shared execution pipeline."""
 
 from __future__ import annotations
 
 import glob as glob_module
+import json
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from .config import Settings
-from .models import TodoItem
-from .skills import SkillLoader
-from .tasks import TASK_TOOLS
+from .hooks import HookManager
+from .models import ToolRequest
+from .skill_loading import SkillLoader
 
 
-MAX_OUTPUT_CHARS = 50_000
-
-
+# s02 在一个文件中依次呈现模型契约、调用分发和 handler，便于连续阅读。
+# 三部分仍保持对象边界：修改 schema 不会悄悄改变运行行为，
+# 修改 handler 也不会自动向模型暴露新能力。
 def function_tool(
     name: str,
     description: str,
@@ -122,24 +124,84 @@ COMPACT_TOOL = function_tool(
     {},
 )
 
+# 注册表与 handler 表是两件事：注册表是随每次请求发给模型的 JSON Schema，
+# 决定模型允许请求什么，也是 System Prompt 里 tools section 的数据源；
+# handler 表（agent_loop.py L92 与下方 BuiltinTools.handlers）是本地真正
+# 执行的 Python 可调用对象，决定请求最终跑什么代码。
+# 两表刻意不完全对齐：compact 只有 schema 而没有 handler，因为它要替换
+# 整个 messages，不满足 handler 返回字符串的契约，由父循环内联拦截；
+# SUB_TOOLS 特意排除了 todo_write、task 和 compact，即使模型凭记忆硬造调用，
+# handler 表也只会返回 unknown tool。
+# 所以能力隔离由注册表和 handler 表共同保证，而不只依赖 SubAgent Prompt。
 PARENT_TOOLS = [
     *BASE_TOOLS,
     TODO_TOOL,
     SUBAGENT_TOOL,
     LOAD_SKILL_TOOL,
     COMPACT_TOOL,
-    *TASK_TOOLS,
 ]
 SUB_TOOLS = [*BASE_TOOLS, LOAD_SKILL_TOOL]
 
 
+# 父 Agent 和 SubAgent 的所有普通工具调用都经过这条共享管线。
+class ToolExecutor:
+    """Parse arguments, run hooks, and dispatch one tool call."""
+
+    def __init__(self, hooks: HookManager):
+        self.hooks = hooks
+
+    def execute(
+        self,
+        name: str,
+        arguments: str,
+        handlers: dict[str, Callable[..., str]],
+        display_prefix: str = "",
+    ) -> str:
+        try:
+            payload = json.loads(arguments)
+        except json.JSONDecodeError as exc:
+            return f"Error: invalid tool arguments: {exc}"
+        if not isinstance(payload, dict):
+            return "Error: tool arguments must be a JSON object"
+        print(
+            f"\033[33m{display_prefix}{name} "
+            f"{json.dumps(payload, ensure_ascii=False)}\033[0m"
+        )
+        request = ToolRequest(name=name, arguments=payload)
+        blocked = self.hooks.trigger("PreToolUse", request)
+        if blocked is not None:
+            print(blocked)
+            return str(blocked)
+        handler = handlers.get(name)
+        if handler is None:
+            result = f"Error: unknown tool {name!r}"
+        else:
+            try:
+                result = handler(**payload)
+            except TypeError as exc:
+                result = f"Error: invalid arguments for {name}: {exc}"
+        result = str(result)
+        self.hooks.trigger("PostToolUse", request, result)
+        print(result if len(result) <= 500 else result[:500] + "\n...")
+        return result
+
+
+# handler 是运行时实现，上面的 schema 是模型能力契约。execute() 用
+# handler(**payload) 直接展开 JSON 参数，因此 schema 的属性名必须与 handler
+# 形参名逐字一致；只改一边不会有静态报错，只会在运行时变成
+# invalid arguments 错误。
+MAX_OUTPUT_CHARS = 50_000
+
+
+# 这里的 builtin 指由 Harness 自己实现、父子 Agent 共用的基础工具，
+# 对应 schema 侧的 BASE_TOOLS + LOAD_SKILL_TOOL（即 SUB_TOOLS 全集）。
+# todo_write 与 task 由 TodoManager、SubagentRunner 提供，只注册给父 Agent。
 class BuiltinTools:
-    """Stateful handlers for the non-task built-ins."""
+    """Handlers that operate on the workspace or Skill registry."""
 
     def __init__(self, settings: Settings, skills: SkillLoader):
         self.settings = settings
         self.skills = skills
-        self.todos: list[TodoItem] = []
 
     def safe_path(self, path: str) -> Path:
         if not isinstance(path, str) or not path.strip():
@@ -230,33 +292,7 @@ class BuiltinTools:
             matches.append(match)
         return self.clip("\n".join(sorted(matches)) if matches else "(no matches)")
 
-    def run_todo_write(self, todos: list[dict[str, Any]]) -> str:
-        if not isinstance(todos, list):
-            return "Error: todos must be a list"
-        validated: list[TodoItem] = []
-        in_progress = 0
-        for index, item in enumerate(todos):
-            if not isinstance(item, dict) or set(item) != {"content", "status"}:
-                return f"Error: todo {index} must contain only content and status"
-            content = item.get("content")
-            status = item.get("status")
-            if not isinstance(content, str) or not content.strip():
-                return f"Error: todo {index} content must be non-empty"
-            if status not in {"pending", "in_progress", "completed"}:
-                return f"Error: invalid todo status: {status!r}"
-            in_progress += status == "in_progress"
-            validated.append({"content": content.strip(), "status": status})
-        if in_progress > 1:
-            return "Error: at most one todo may be in_progress"
-        self.todos[:] = validated
-        markers = {"pending": "[ ]", "in_progress": "[>]", "completed": "[x]"}
-        rendered = "\n".join(
-            f"{markers[item['status']]} {item['content']}" for item in self.todos
-        )
-        print(f"\n{rendered}")
-        return f"Updated {len(self.todos)} todos.\n{rendered}"
-
-    def base_handlers(self) -> dict[str, Callable[..., str]]:
+    def handlers(self) -> dict[str, Callable[..., str]]:
         return {
             "bash": self.run_bash,
             "read_file": self.run_read,

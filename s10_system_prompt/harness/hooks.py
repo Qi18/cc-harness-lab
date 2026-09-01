@@ -1,21 +1,19 @@
-"""Lifecycle hooks and the permission pipeline."""
+"""Lifecycle hook registration and dispatch."""
 
 from __future__ import annotations
 
 import json
-import re
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
 from .config import Settings
 from .models import ToolRequest
+from .permission import PermissionPolicy
 
 
 HOOK_EVENTS = ("UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop")
 HookCallback = Callable[..., str | None]
 LARGE_OUTPUT_CHARS = 10_000
-DENY_LIST = ("sudo", "shutdown", "reboot", "mkfs", "dd if=", "> /dev/")
 
 
 class HookManager:
@@ -36,74 +34,6 @@ class HookManager:
             result = callback(*args)
             if result is not None:
                 return result
-        return None
-
-
-class PermissionPolicy:
-    def __init__(self, settings: Settings):
-        self.settings = settings
-
-    @staticmethod
-    def deny_reason(command: str) -> str | None:
-        normalized = command.lower()
-        if re.search(r"(?:^|[;&|]\s*)rm\s+-rf\s+/(?=$|\s|[;&|])", normalized):
-            return "Blocked: 'rm -rf /' is on the deny list"
-        for pattern in DENY_LIST:
-            if pattern in normalized:
-                return f"Blocked: {pattern!r} is on the deny list"
-        return None
-
-    def path_outside_workdir(self, value: object) -> bool:
-        if not isinstance(value, str) or not value.strip():
-            return False
-        raw = Path(value).expanduser()
-        candidate = raw.resolve() if raw.is_absolute() else (
-            self.settings.workdir / raw
-        ).resolve()
-        try:
-            candidate.relative_to(self.settings.workdir)
-        except ValueError:
-            return True
-        return False
-
-    def ask_reason(self, request: ToolRequest) -> str | None:
-        if request.name in {"write_file", "edit_file"} and self.path_outside_workdir(
-            request.arguments.get("path")
-        ):
-            return "Writing outside the working directory"
-        if request.name == "bash":
-            command = request.arguments.get("command", "")
-            if isinstance(command, str) and any(
-                marker in command.lower()
-                for marker in ("rm ", "> /etc/", "chmod 777")
-            ):
-                return "Potentially destructive command"
-        return None
-
-    @staticmethod
-    def ask_user(request: ToolRequest, reason: str) -> bool:
-        print(f"\n\033[33m⚠ {reason}\033[0m")
-        print(
-            f"  Tool: {request.name}"
-            f"({json.dumps(request.arguments, ensure_ascii=False)})"
-        )
-        try:
-            choice = input("  Allow? [y/N] ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            return False
-        return choice in {"y", "yes"}
-
-    def check(self, request: ToolRequest) -> str | None:
-        if request.name == "bash":
-            command = request.arguments.get("command", "")
-            reason = self.deny_reason(command if isinstance(command, str) else "")
-            if reason:
-                print(f"\n\033[31m⛔ {reason}\033[0m")
-                return f"Permission denied: {reason}"
-        reason = self.ask_reason(request)
-        if reason and not self.ask_user(request, reason):
-            return f"Permission denied: {reason}"
         return None
 
 
@@ -134,6 +64,8 @@ def install_default_hooks(
         count = sum(message.get("role") == "tool" for message in messages)
         print(f"\033[90m[HOOK] Stop: session used {count} tool calls\033[0m")
 
+    # 注册顺序会影响行为：权限检查可在记录日志和执行前短路，
+    # PostToolUse 与 Stop 则继续承担观察和续写职责。
     hooks.register("UserPromptSubmit", context_hook)
     hooks.register("PreToolUse", policy.check)
     hooks.register("PreToolUse", log_hook)
