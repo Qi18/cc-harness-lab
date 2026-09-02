@@ -1,0 +1,207 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1470" viewBox="0 0 1280 1470">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#667085"/>
+    </marker>
+    <marker id="arrow-light" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#98a2b3"/>
+    </marker>
+    <marker id="arrow-bg" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#0e9384"/>
+    </marker>
+    <style>
+      .title { font: 700 20px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #101828; }
+      .subtitle { font: 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #667085; }
+      .legend { font: 12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #475467; }
+      .box-title { font: 700 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #101828; }
+      .box-text { font: 12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #475467; }
+      .edge-label { font: 11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #667085; }
+      .edge { stroke: #667085; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+      .edge-plain { stroke: #667085; stroke-width: 1.5; fill: none; }
+      .link { stroke: #98a2b3; stroke-width: 1.1; fill: none; stroke-dasharray: 4 4; marker-end: url(#arrow-light); }
+      .transition { stroke: #0e9384; stroke-width: 1.4; fill: none; marker-end: url(#arrow-bg); }
+      .stage { fill: #f9fafb; stroke: #98a2b3; }
+      .decision { fill: #ffffff; stroke: #667085; }
+      .background { fill: #f0fdf9; stroke: #0e9384; }
+      .task { fill: #f9f5ff; stroke: #7f56d9; }
+      .recovery { fill: #fef3f2; stroke: #f97066; }
+      .prompt { fill: #ecfdf3; stroke: #32d583; }
+      .memory { fill: #fff6ed; stroke: #f79009; }
+      .compact { fill: #eff8ff; stroke: #53b1fd; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="1470" fill="#ffffff"/>
+  <text x="32" y="38" class="title">s13 一个 user turn 的调用图 · 后台执行与通知注入</text>
+  <text x="32" y="60" class="subtitle">左列是父 Agent 的六个阶段，青底为 s13 新增的后台路径；右列是被调用的子系统；未标模块名的行号属于 agent_loop.py。</text>
+
+  <rect x="32" y="76" width="14" height="14" rx="3" class="background"/>
+  <text x="52" y="88" class="legend">Background Tasks（s13 新增）</text>
+  <rect x="250" y="76" width="14" height="14" rx="3" class="task"/>
+  <text x="270" y="88" class="legend">Task System（s12）</text>
+  <rect x="405" y="76" width="14" height="14" rx="3" class="recovery"/>
+  <text x="425" y="88" class="legend">恢复分支（s11）</text>
+  <rect x="537" y="76" width="14" height="14" rx="3" class="prompt"/>
+  <text x="557" y="88" class="legend">Prompt 组装（s10）</text>
+  <rect x="687" y="76" width="14" height="14" rx="3" class="memory"/>
+  <text x="707" y="88" class="legend">Memory（s09）</text>
+  <rect x="810" y="76" width="14" height="14" rx="3" class="compact"/>
+  <text x="830" y="88" class="legend">Compact（s08）</text>
+  <rect x="940" y="76" width="14" height="14" rx="3" class="stage"/>
+  <text x="960" y="88" class="legend">循环阶段 / 工具与 Hook</text>
+
+  <rect x="90" y="126" width="620" height="134" rx="10" class="stage"/>
+  <text x="110" y="152" class="box-title">⓪ 装配 · code.py → AgentHarness.__init__</text>
+  <text x="110" y="176" class="box-text">SkillLoader · TodoManager · TaskManager · BuiltinTools · Hook → ToolExecutor (L75-L87)</text>
+  <text x="110" y="196" class="box-text">CompactToolController · ContextCompactor · memory.configure · 父子 assembler (L90)</text>
+  <rect x="104" y="204" width="592" height="46" rx="6" class="background"/>
+  <text x="110" y="222" class="box-text">self.background = BackgroundTaskManager() (L81)：进程内任务表，无磁盘状态</text>
+  <text x="110" y="242" class="box-text">BACKGROUND_CONTROL_ARGUMENTS (L50)：只有 bash 能剥离的控制字段白名单</text>
+
+  <rect x="90" y="284" width="620" height="134" rx="10" class="stage"/>
+  <text x="110" y="310" class="box-title">① turn 开始 · 每 turn 一次</text>
+  <rect x="104" y="320" width="592" height="46" rx="6" class="background"/>
+  <text x="110" y="338" class="box-text">收集点① _inject_background_notifications (L304)：注入上一 turn 完成的任务</text>
+  <text x="110" y="358" class="box-text">必须晚于 latest_user_request (L297)，否则通知会被当成本轮用户目标</text>
+  <text x="110" y="382" class="box-text">refresh_system_prompts (L307) → load_memories → inject_recalled (L308-L309)</text>
+  <text x="110" y="402" class="box-text">RecoveryState(settings.model) (L318)：计数器归零，不跨 turn 累积</text>
+
+  <rect x="90" y="442" width="620" height="190" rx="10" class="stage"/>
+  <text x="110" y="468" class="box-title">② 请求与瞬态恢复 · 每轮一次</text>
+  <rect x="104" y="478" width="592" height="46" rx="6" class="background"/>
+  <text x="110" y="496" class="box-text">收集点② 每轮循环开头注入 (L324)：工具批次执行期间完成的任务</text>
+  <text x="110" y="516" class="box-text">worker 只写任务字典；messages 始终由父线程独占</text>
+  <text x="110" y="540" class="box-text">todo reminder (L327) → refresh_system_prompts (L337) → compactor.prepare (L338)</text>
+  <rect x="104" y="548" width="592" height="24" rx="6" class="decision"/>
+  <text x="110" y="565" class="box-text">with_retry (L343) → completion_request → chat.completions.create (L344)</text>
+  <rect x="104" y="578" width="592" height="44" rx="6" class="recovery"/>
+  <text x="110" y="595" class="box-text">429 / 529：退避 0.5→32s + jitter，Retry-After 优先，529×3 → fallback</text>
+  <text x="110" y="615" class="box-text">prompt too long：reactive_compact 每 turn 一次；否则收口为 assistant 文本</text>
+
+  <rect x="90" y="652" width="620" height="136" rx="10" class="stage"/>
+  <text x="110" y="678" class="box-title">③ 响应分类 · 完整性先于写入</text>
+  <rect x="104" y="688" width="592" height="68" rx="6" class="recovery"/>
+  <text x="110" y="705" class="box-text">is_output_truncated → 首次升级 max_tokens，再截断才存片段并续写 (L383-L427)</text>
+  <text x="110" y="725" class="box-text">3 条 continuation 用尽 → 返回最后片段；片段为空 → 显式错误</text>
+  <text x="110" y="745" class="box-text">截断分支全部 continue，不完整响应不会进入工具分发</text>
+  <text x="110" y="776" class="box-text">完整 → assistant_payload 双写主历史与提取快照 (L430-L432)</text>
+
+  <rect x="290" y="812" width="220" height="38" rx="10" class="decision"/>
+  <text x="400" y="836" text-anchor="middle" class="box-text">assistant.tool_calls ?</text>
+
+  <rect x="90" y="874" width="620" height="180" rx="10" class="stage"/>
+  <text x="110" y="900" class="box-title">④ 工具批次 (L459 / L235)</text>
+  <text x="110" y="924" class="box-text">compact → CompactToolController.request (L253)：唯一的控制工具例外</text>
+  <text x="110" y="944" class="box-text">其他工具 → _dispatch_parent_tool (L260 / L184)</text>
+  <rect x="104" y="952" width="592" height="68" rx="6" class="background"/>
+  <text x="110" y="969" class="box-text">prepare (L191)：JSON → PreToolUse / Permission → 剥离 run_in_background</text>
+  <text x="110" y="989" class="box-text">should_run_background (L203) 真 → start (L205) + placeholder (L213)</text>
+  <text x="110" y="1009" class="box-text">假 → execute_prepared (L214)；被拒绝直接返回文本，不创建 worker</text>
+  <text x="110" y="1040" class="box-text">每个 tool_call 配对 role=tool (L264-L270)，整批写完才 compact_history (L468)</text>
+
+  <rect x="90" y="1078" width="620" height="150" rx="10" class="stage"/>
+  <text x="110" y="1104" class="box-title">⑤ turn 结束 · 仅最终回答</text>
+  <rect x="104" y="1114" width="592" height="46" rx="6" class="background"/>
+  <text x="110" y="1132" class="box-text">收集点③ 最终答案前再收一次 (L438-L441)：有通知就 continue</text>
+  <text x="110" y="1152" class="box-text">避免结果已经到达，却仍把“后台运行中”当成最终答案</text>
+  <text x="110" y="1184" class="box-text">Stop Hook (L445)：要求继续则追加 user 消息并回到 ②</text>
+  <text x="110" y="1204" class="box-text">extract_memories(快照) (L453) → consolidate (L454) → return answer (L455)</text>
+
+  <line x1="400" y1="260" x2="400" y2="282" class="edge"/>
+  <line x1="400" y1="418" x2="400" y2="440" class="edge"/>
+  <line x1="400" y1="632" x2="400" y2="650" class="edge"/>
+  <line x1="400" y1="788" x2="400" y2="810" class="edge"/>
+  <line x1="400" y1="850" x2="400" y2="872" class="edge"/>
+  <text x="408" y="868" class="edge-label">有</text>
+
+  <path d="M510 831 L736 831 L736 1140 L713 1140" class="edge"/>
+  <text x="516" y="824" class="edge-label">无 tool_calls</text>
+
+  <path d="M90 720 L62 720" class="edge-plain"/>
+  <path d="M90 944 L62 944 L62 466 L86 466" class="edge"/>
+  <text x="6" y="700" class="edge-label">回到 ②</text>
+
+  <rect x="90" y="1252" width="620" height="140" rx="10" class="stage"/>
+  <text x="110" y="1278" class="box-title">两条时间线 · 一把锁</text>
+  <text x="110" y="1302" class="box-text">父线程　prepare → start → placeholder → 下一次模型调用 → collect → user 通知</text>
+  <text x="110" y="1322" class="box-text">worker　handler → PostToolUse → replace(终态快照) → 等待被 collect 取走</text>
+  <text x="110" y="1350" class="box-text">同一把 Lock 保护 _counter / _tasks / _threads (L73-L76)，start() 在锁外 (L179)</text>
+  <text x="110" y="1372" class="box-text">worker 从不触碰 messages，消息状态机仍然是单线程的</text>
+
+  <rect x="800" y="126" width="450" height="186" rx="10" class="background"/>
+  <text x="820" y="152" class="box-title">background_tasks.py · 后台设施（s13 新增）</text>
+  <text x="820" y="176" class="box-text">SLOW_COMMAND_HINTS L24-L36：11 个关键词，只作兜底</text>
+  <text x="820" y="196" class="box-text">should_run_background L91-L106：显式 is True 才后台</text>
+  <text x="820" y="216" class="box-text">BackgroundTask L39-L53：frozen 八字段快照</text>
+  <text x="820" y="236" class="box-text">start L113-L181：锁内建记录，锁外 thread.start()</text>
+  <text x="820" y="256" class="box-text">worker L145-L166：异常 → failed，replace 写终态</text>
+  <text x="820" y="276" class="box-text">collect_notifications L215-L239：锁内 pop，只投递一次</text>
+  <text x="820" y="296" class="box-text">wait / wait_for_all L248-L276：受控关闭与确定性测试</text>
+
+  <rect x="800" y="334" width="450" height="140" rx="10" class="background"/>
+  <text x="820" y="360" class="box-title">状态机 · 只前进一次</text>
+  <rect x="814" y="372" width="118" height="40" rx="8" class="decision"/>
+  <text x="873" y="397" text-anchor="middle" class="box-text">running</text>
+  <rect x="984" y="366" width="126" height="32" rx="8" class="decision"/>
+  <text x="1047" y="387" text-anchor="middle" class="box-text">completed</text>
+  <rect x="984" y="410" width="126" height="32" rx="8" class="decision"/>
+  <text x="1047" y="431" text-anchor="middle" class="box-text">failed</text>
+  <path d="M932 386 L960 386 L960 382 L980 382" class="transition"/>
+  <path d="M932 402 L960 402 L960 426 L980 426" class="transition"/>
+  <text x="1120" y="387" class="edge-label">runner 正常返回</text>
+  <text x="1120" y="431" class="edge-label">runner 抛异常</text>
+  <text x="820" y="460" class="box-text">TERMINAL_STATUSES L18 · Bash 非零退出码仍算 completed</text>
+
+  <rect x="800" y="496" width="450" height="166" rx="10" class="background"/>
+  <text x="820" y="522" class="box-title">两种结果 · 同一次后台调用</text>
+  <rect x="812" y="532" width="426" height="44" rx="6" class="stage"/>
+  <text x="820" y="550" class="box-text">placeholder L183-L192 → role=tool，配对原 tool_call_id</text>
+  <text x="820" y="570" class="box-text">[Background task bg_0001 started] Command: …</text>
+  <rect x="812" y="584" width="426" height="64" rx="6" class="decision"/>
+  <text x="820" y="602" class="box-text">notification L204-L213 → role=user，不带 tool_call_id</text>
+  <text x="820" y="622" class="box-text">&lt;task_notification&gt;：task_id / status / command / summary</text>
+  <text x="820" y="642" class="box-text">html.escape 四个字段 · 摘要上限 1000 字符 (L20 / L194)</text>
+
+  <rect x="800" y="684" width="450" height="130" rx="10" class="stage"/>
+  <text x="820" y="710" class="box-title">tool_use.py · 两段执行与双 schema</text>
+  <text x="820" y="734" class="box-text">BASH_TOOL L46-L51（子）· BACKGROUND_BASH_TOOL L52-L63（父）</text>
+  <text x="820" y="754" class="box-text">PARENT_TOOLS L152-L160：后台版 + *BASE_TOOLS[1:] → 仍是 14</text>
+  <text x="820" y="774" class="box-text">prepare L180 → PreparedToolCall L164 → execute_prepared L219</text>
+  <text x="820" y="794" class="box-text">execute L237-L252 仍是二者组合，SubAgent 走同步路径</text>
+
+  <rect x="800" y="836" width="450" height="88" rx="10" class="prompt"/>
+  <text x="820" y="862" class="box-title">system_prompt.py · Prompt 组装（s10）</text>
+  <text x="820" y="886" class="box-text">tools section 直接读注册表：父 14 子 6 自动同步</text>
+  <text x="820" y="906" class="box-text">父 guidance L14-L16 才提后台；子 guidance L24-L27 不提</text>
+
+  <rect x="800" y="946" width="450" height="88" rx="10" class="recovery"/>
+  <text x="820" y="972" class="box-title">error_recovery.py · 恢复策略（s11）</text>
+  <text x="820" y="996" class="box-text">with_retry L126：仅 429 / 529，最多 10 次</text>
+  <text x="820" y="1016" class="box-text">后台失败不重发请求，它已经是响应之后的世界变化</text>
+
+  <rect x="800" y="1056" width="450" height="88" rx="10" class="task"/>
+  <text x="820" y="1082" class="box-title">task_system.py · 持久任务板（s12）</text>
+  <text x="820" y="1106" class="box-text">五个任务工具仍同步执行，状态落在 .tasks/*.json</text>
+  <text x="820" y="1126" class="box-text">跨会话的是任务板；后台任务只活在当前进程</text>
+
+  <rect x="800" y="1166" width="450" height="68" rx="10" class="compact"/>
+  <text x="820" y="1192" class="box-title">context_compact.py · Compact（s08）</text>
+  <text x="820" y="1216" class="box-text">通知是普通 user 消息，可能被摘要吞掉且无法重取</text>
+
+  <rect x="800" y="1256" width="450" height="68" rx="10" class="memory"/>
+  <text x="820" y="1282" class="box-title">memory.py · Memory（s09）</text>
+  <text x="820" y="1306" class="box-text">通知同时深拷贝进提取快照 (L227)，不丢这次外部事件</text>
+
+  <path d="M710 226 L796 180" class="link"/>
+  <path d="M710 500 L796 288" class="link"/>
+  <path d="M710 1009 L796 400" class="link"/>
+  <path d="M710 969 L796 770" class="link"/>
+  <path d="M710 1140 L796 600" class="link"/>
+  <path d="M710 382 L796 890" class="link"/>
+  <path d="M710 600 L796 1000" class="link"/>
+  <path d="M710 924 L796 1110" class="link"/>
+  <path d="M710 1040 L796 1210" class="link"/>
+  <path d="M710 1204 L796 1300" class="link"/>
+
+  <text x="32" y="1440" class="subtitle">placeholder 只关闭工具协议，真实结果是稍后那条 user 通知；worker 只改任务表，注入时机全部由父循环决定。</text>
+</svg>
