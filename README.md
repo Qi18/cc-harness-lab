@@ -6,12 +6,13 @@
 
 ## 当前进度
 
-当前已完成 s01–s11，并通过 161 项自动化测试：
+当前已完成 s01–s12，并通过 197 项自动化测试：
 
 | 章节 | 主题 | 关键实现 |
 | --- | --- | --- |
 | [s10](s10_system_prompt/) | System Prompt | 根据真实工具、工作区、Skills 和 Memory 元数据动态组装并缓存 |
 | [s11](s11_error_recovery/) | Error Recovery | 输出截断续写、Prompt 溢出压缩，以及 429/529 有界退避与 fallback |
+| [s12](s12_task_system/) | Task System | 持久任务图、依赖阻塞、严格状态机和原子 JSON 落盘 |
 
 各章节采用累计实现：后章保留前章能力，而不是孤立示例。
 
@@ -34,7 +35,7 @@ Loop 的基本形状。
 
 | 维度 | 官方 Learn Claude Code | 本仓库 cc-harness-lab |
 | --- | --- | --- |
-| 当前课程范围 | 主线 s01–s20，另有 legacy track 和 Web 教学平台 | 当前完成 s01–s11，保留代码、中文说明和测试 |
+| 当前课程范围 | 主线 s01–s20，另有 legacy track 和 Web 教学平台 | 当前完成 s01–s12，保留代码、中文说明和测试 |
 | 章节组织 | 每章隔离一个机制，部分章节使用较小 kernel，s15 再组装完整 Harness | 每章直接复制并继承上一章，s09 已包含 s01–s08 全部能力 |
 | 默认模型协议 | Anthropic SDK，`tool_use` / `tool_result` content blocks | 百炼 OpenAI-compatible，`tool_calls` / 独立 `role=tool` 消息 |
 | 默认配置 | `ANTHROPIC_API_KEY`、`ANTHROPIC_BASE_URL`、`MODEL_ID` | `DASHSCOPE_API_KEY`、`DASHSCOPE_BASE_URL`、`MODEL_ID` |
@@ -44,7 +45,7 @@ Loop 的基本形状。
 | 子 Agent | 聚焦 fresh `messages[]` 和结果返回 | 额外限制 30 轮、禁止递归 `task`，复用权限与 Hook |
 | Context Compact | 讲解四层压缩机制 | 适配 OpenAI 消息配对，增加 transcript、主动 compact 和单次 reactive retry |
 | Memory | selection、extraction、consolidation | 与 s08 联动，使用压缩前快照，并增加常见 Secret 拒绝和可配置目录 |
-| 验证方式 | 官方 runnable lessons 与上游测试 | 每章对应 `tests/test_sXX.py`，当前全量 161 项测试 |
+| 验证方式 | 官方 runnable lessons 与上游测试 | 每章对应 `tests/test_sXX.py`，当前全量 197 项测试 |
 | 文档形态 | 英文默认文档、中文/日文翻译、图片和 Web 课程 | 中文 README、源码分析和远端可运行实验，不包含 Web 平台 |
 
 ### 为什么本仓库代码更长
@@ -77,7 +78,7 @@ assistant 产生 `tool_calls`，每个结果追加为独立的 `role=tool` 消�
 
 所以本仓库是在复现 Harness 机制，而不是复制官方消息结构。
 
-### s01–s11 的实现偏差
+### s01–s12 的实现偏差
 
 | 阶段 | 共同主题 | 本仓库相对官方的主要实现选择 |
 | --- | --- | --- |
@@ -92,6 +93,7 @@ assistant 产生 `tool_calls`，每个结果追加为独立的 `role=tool` 消�
 | s09 | Memory | 索引常驻 system、正文附加到当前 user turn，使用独立提取快照和 Secret 过滤 |
 | s10 | System Prompt | 按真实工具、workspace、Skill 与 Memory 状态组装命名 section，并缓存不变 context |
 | s11 | Error Recovery | 适配 `finish_reason`，8K→64K 后有界续写；429/529 退避并支持 fallback |
+| s12 | Task System | 在累计 Harness 中加入父 Agent 专属任务板，严格校验依赖和状态，并原子持久化到 `.tasks/` |
 
 每章更细的运行逻辑、权衡和与官方单章源码的差异，记录在对应目录的 README 或
 ANALYSIS 文档中。例如 s09 的 Memory 对照见
@@ -101,7 +103,6 @@ ANALYSIS 文档中。例如 s09 的 Memory 对照见
 
 官方当前后续章节还包括：
 
-- s12 Task System：持久任务图、依赖和状态机；
 - s13 Background Tasks：后台执行、通知和进程清理；
 - s14 Cron Scheduler：持久化定时触发；
 - s15 Agent Teams：持久队友与 mailbox 协调；
@@ -111,7 +112,7 @@ ANALYSIS 文档中。例如 s09 的 Memory 对照见
 - s19 MCP Tools：外部工具发现和统一路由；
 - s20 Comprehensive Agent：把全部机制组装进一个完整 Harness。
 
-因此，本仓库目前只能与官方 s01–s11 对齐，不能被描述为官方完整实现，也不是 Claude
+因此，本仓库目前只能与官方 s01–s12 对齐，不能被描述为官方完整实现，也不是 Claude
 Code 本体的等价替代。
 
 ## Evaluation Plan
@@ -262,6 +263,21 @@ User Task
 - 连续三次 529 且配置 `FALLBACK_MODEL_ID` 时切换备用模型
 - 错误分类和退避位于 `error_recovery.py`，消息状态迁移仍由 `agent_loop.py` 负责
 
+### `s12_task_system`
+
+在 s11 累计 Harness 上加入可跨会话恢复的项目任务板。详细设计见
+[`s12_task_system/README.md`](s12_task_system/README.md)，对照
+[s12 官方教程](https://learn.shareai.run/zh/s12/)和
+[官方源码](https://github.com/shareAI-lab/learn-claude-code/blob/main/s12_task_system/code.py)。
+
+- `create_task`、`list_tasks`、`get_task`、`claim_task`、`complete_task` 五个父 Agent 工具
+- 每个任务以 `.tasks/{id}.json` 持久化，字段为 `id`、`subject`、`description`、`status`、`owner`、`blockedBy`
+- `pending -> in_progress -> completed` 是严格单向状态机，不提供跳步或回退
+- 依赖不存在或尚未完成时不能 claim；完成任务会报告被直接解锁的下游任务
+- 同目录临时文件经 `flush + fsync + os.replace` 原子替换，文件权限固定为 `0600`
+- Task 工具继续经过 ToolExecutor、权限和 Hook；SubAgent 不暴露这些工具
+- TodoWrite 仍负责当前执行清单，Task System 负责跨轮次、跨会话的项目工作图
+
 ## Project Structure
 
 ```text
@@ -323,6 +339,16 @@ User Task
 │       ├── agent_loop.py
 │       ├── error_recovery.py
 │       └── ...                 # s01–s10 累计能力模块
+├── s12_task_system/
+│   ├── README.md
+│   ├── ANALYSIS.md
+│   ├── CALLGRAPH.md
+│   ├── callgraph.svg
+│   ├── code.py
+│   └── harness/
+│       ├── agent_loop.py
+│       ├── task_system.py
+│       └── ...                 # s01–s11 累计能力模块
 ├── skills/
 │   └── code-review/
 │       └── SKILL.md
@@ -337,7 +363,8 @@ User Task
 │   ├── test_s08.py
 │   ├── test_s09.py
 │   ├── test_s10.py
-│   └── test_s11.py
+│   ├── test_s11.py
+│   └── test_s12.py
 ├── .env.example
 └── requirements.txt
 ```
@@ -386,6 +413,9 @@ python3 s10_system_prompt/code.py
 
 # 第十一章：有界错误恢复
 python3 s11_error_recovery/code.py
+
+# 第十二章：持久任务系统
+python3 s12_task_system/code.py
 ```
 
 运行测试：
@@ -413,15 +443,14 @@ python -m pytest
 
 后续按官方当前主线继续实现，同时保持百炼 OpenAI-compatible 适配和累计回归：
 
-1. s12 Task System
-2. s13 Background Tasks
-3. s14 Cron Scheduler
-4. s15 Agent Teams
-5. s16 Team Protocols
-6. s17 Autonomous Agents
-7. s18 Worktree Isolation
-8. s19 MCP Tools
-9. s20 Comprehensive Agent
+1. s13 Background Tasks
+2. s14 Cron Scheduler
+3. s15 Agent Teams
+4. s16 Team Protocols
+5. s17 Autonomous Agents
+6. s18 Worktree Isolation
+7. s19 MCP Tools
+8. s20 Comprehensive Agent
 
 ## Safety
 
@@ -435,5 +464,6 @@ TODO 只存在于内存中，进程退出即丢失；s06 子 Agent 同步占用�
 上下文，虽然代码会拒绝常见密钥格式，仍应定期审阅 `.memory/`，不要把凭据、客户
 数据或其他敏感信息写入记忆；s10 组装 Prompt 只保证内容与运行态一致，不代表模型会
 严格遵守所有文字约束；s11 的重试有硬上限，但错误分类仍依赖供应商状态码和消息，
-也不等价于生产级容灾。代码仍用于学习，请在受控目录和隔离环境中运行，不要直接用于
-生产环境。
+也不等价于生产级容灾；s12 的单文件写入是原子的，但没有跨进程 claim 锁、循环依赖
+检测或任务释放协议，并发运行多个 Harness 时仍可能发生竞态。代码仍用于学习，请在
+受控目录和隔离环境中运行，不要直接用于生产环境。
