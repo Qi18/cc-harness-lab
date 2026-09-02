@@ -18,6 +18,7 @@ PENDING = "pending"
 IN_PROGRESS = "in_progress"
 COMPLETED = "completed"
 VALID_STATUSES = {PENDING, IN_PROGRESS, COMPLETED}
+# 任务 ID 会直接拼成文件名，因此限定前缀、字符集和长度，杜绝路径穿越。
 SAFE_TASK_ID = re.compile(r"^task_[A-Za-z0-9][A-Za-z0-9_.-]{0,121}$")
 
 
@@ -46,6 +47,7 @@ def _task_tool(
     }
 
 
+# schema 在本模块自建并由 tool_use.py 反向导入，避免两个模块相互依赖。
 TASK_TOOLS = [
     _task_tool(
         "create_task",
@@ -116,6 +118,8 @@ class TaskRecord:
     blocked_by: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
+        """回写磁盘时恢复教程公开的 blockedBy 字段名。"""
+
         return {
             "id": self.id,
             "subject": self.subject,
@@ -127,6 +131,8 @@ class TaskRecord:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "TaskRecord":
+        """磁盘不是可信输入：每次读取都重新校验全部字段。"""
+
         task_id = payload.get("id")
         subject = payload.get("subject")
         description = payload.get("description")
@@ -142,6 +148,7 @@ class TaskRecord:
             raise TaskError(f"task {task_id} has an invalid description")
         if status not in VALID_STATUSES:
             raise TaskError(f"task {task_id} has an invalid status")
+        # owner 只能是 null 或非空字符串：空串等于没有归属，却能骗过状态检查。
         if owner is not None and (not isinstance(owner, str) or not owner.strip()):
             raise TaskError(f"task {task_id} has an invalid owner")
         if not isinstance(blocked_by, list) or not all(
@@ -149,6 +156,7 @@ class TaskRecord:
             for item in blocked_by
         ):
             raise TaskError(f"task {task_id} has invalid blockedBy entries")
+        # 重复依赖不会改变语义，但会让 blocker 列表出现重复项。
         if len(blocked_by) != len(set(blocked_by)):
             raise TaskError(f"task {task_id} has duplicate blockedBy entries")
 
@@ -171,7 +179,10 @@ class TaskManager:
         *,
         id_factory: Callable[[], str] | None = None,
     ):
+        """建立任务目录；id_factory 可注入，让测试拿到确定的 ID。"""
+
         self.tasks_dir = tasks_dir.expanduser().resolve()
+        # mode 700：任务正文可能包含项目细节，只对当前用户可见。
         self.tasks_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         self._id_factory = id_factory or self._default_id
 
@@ -182,6 +193,8 @@ class TaskManager:
 
     @staticmethod
     def _validate_id(task_id: str) -> str:
+        """任何进入路径拼接的 ID 都必须先过白名单正则。"""
+
         if not isinstance(task_id, str) or not SAFE_TASK_ID.fullmatch(task_id):
             raise TaskError("task_id must be a filesystem-safe identifier")
         return task_id
@@ -198,6 +211,8 @@ class TaskManager:
         raise TaskError("could not allocate a unique task id")
 
     def _load(self, task_id: str) -> TaskRecord:
+        """读取单个任务，并确认文件名与记录里的 id 指向同一个任务。"""
+
         path = self._path(task_id)
         if not path.is_file():
             raise TaskNotFound(f"task {task_id!r} does not exist")
@@ -208,6 +223,7 @@ class TaskManager:
         if not isinstance(payload, dict):
             raise TaskError(f"task {task_id!r} must contain a JSON object")
         task = TaskRecord.from_dict(payload)
+        # 复制或手改文件后，get_task("A") 不应该返回任务 B。
         if task.id != task_id:
             raise TaskError(
                 f"task file {task_id!r} contains mismatched id {task.id!r}"
@@ -235,12 +251,16 @@ class TaskManager:
                 handle.write("\n")
                 handle.flush()
                 os.fsync(handle.fileno())
+            # 临时文件与目标同目录，os.replace 才是同一文件系统上的原子替换。
             os.replace(temporary, self._path(task.id))
             self._path(task.id).chmod(0o600)
         finally:
+            # 替换成功后已无文件可删；中途失败则不留下 .tmp 残留。
             temporary.unlink(missing_ok=True)
 
     def _all(self) -> list[TaskRecord]:
+        """按文件名顺序读整张任务板；单个坏文件会让本次调用报错。"""
+
         records = []
         for path in sorted(self.tasks_dir.glob("task_*.json")):
             records.append(self._load(path.stem))
@@ -261,10 +281,14 @@ class TaskManager:
         return blocked
 
     def can_start(self, task_id: str) -> bool:
+        """看板显示的 ready 与 claim 的前置检查共用同一判定。"""
+
         return not self.blocking_dependencies(self._load(task_id))
 
     @staticmethod
     def _normalize_dependencies(blocked_by: Any) -> tuple[str, ...]:
+        """创建时清理依赖输入：校验 ID 并按首次出现顺序去重。"""
+
         if blocked_by is None:
             return ()
         if not isinstance(blocked_by, list):
@@ -286,6 +310,8 @@ class TaskManager:
         description: str = "",
         blockedBy: list[str] | None = None,
     ) -> str:
+        """创建 pending 任务；失败以 Error: 文本回给模型而不抛出。"""
+
         try:
             if not isinstance(subject, str) or not subject.strip():
                 raise TaskError("subject must be a non-empty string")
@@ -293,6 +319,7 @@ class TaskManager:
                 raise TaskError("description must be a string")
             dependencies = self._normalize_dependencies(blockedBy)
             task_id = self._new_id()
+            # 本章唯一的环检测：公开工具无法修改已有依赖，只需挡住自环。
             if task_id in dependencies:
                 raise TaskError("a task cannot block itself")
             task = TaskRecord(
@@ -312,6 +339,8 @@ class TaskManager:
             return f"Error: {exc}"
 
     def list_tasks(self) -> str:
+        """渲染任务看板；pending 的 ready / blocked 由依赖实时判定。"""
+
         try:
             records = self._all()
             if not records:
@@ -335,6 +364,8 @@ class TaskManager:
             return f"Error: {exc}"
 
     def get_task(self, task_id: str) -> str:
+        """返回完整记录，让任务描述按需读取而不必常驻上下文。"""
+
         try:
             task = self._load(task_id)
             return json.dumps(task.to_dict(), ensure_ascii=False, indent=2)
@@ -342,8 +373,11 @@ class TaskManager:
             return f"Error: {exc}"
 
     def claim_task(self, task_id: str, owner: str = "agent") -> str:
+        """pending → in_progress 的唯一入口，依赖未完成时拒绝认领。"""
+
         try:
             task = self._load(task_id)
+            # 状态检查先于依赖检查，已认领的任务错误原因才稳定。
             if task.status != PENDING:
                 raise TaskError(
                     f"task {task_id} is {task.status}, cannot claim"
@@ -366,12 +400,15 @@ class TaskManager:
             return f"Error: {exc}"
 
     def complete_task(self, task_id: str) -> str:
+        """in_progress → completed，并报告本次真正解锁的下游任务。"""
+
         try:
             task = self._load(task_id)
             if task.status != IN_PROGRESS:
                 raise TaskError(
                     f"task {task_id} is {task.status}, cannot complete"
                 )
+            # 先落盘再扫描，下游判定读到的就是新的 completed 状态。
             self._save(replace(task, status=COMPLETED))
 
             # 只报告真正依赖本任务且现在无 blocker 的下游，避免把早已 ready
@@ -393,6 +430,8 @@ class TaskManager:
             return f"Error: {exc}"
 
     def handlers(self) -> dict[str, Callable[..., str]]:
+        """只并入父 Agent handler 表；SubAgent 拿不到这五个入口。"""
+
         return {
             "create_task": self.create_task,
             "list_tasks": self.list_tasks,

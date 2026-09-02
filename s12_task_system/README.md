@@ -148,11 +148,11 @@ s12_task_system/
     ├── memory.py             540   09 Memory：召回、提取、整理与持久化
     ├── system_prompt.py      103   10 System Prompt：section 组装与缓存
     ├── error_recovery.py     193   11 Error Recovery：分类、退避、有界状态
-    ├── task_system.py        403   12 Task System：记录、依赖、状态机、五个工具
+    ├── task_system.py        442   12 Task System：记录、依赖、状态机、五个工具
     └── __init__.py            25   包门面
 ```
 
-合计 2939 行，其中 `harness/` 2880 行。章节编号只写在文档里，不写进文件名。
+合计 2978 行，其中 `harness/` 2919 行。章节编号只写在文档里，不写进文件名。
 
 ## 课程与代码的对应关系
 

@@ -87,7 +87,7 @@
   <text x="110" y="886" class="box-text">compact → CompactToolController.request (L204)：唯一的控制工具例外</text>
   <text x="110" y="906" class="box-text">其他工具 → _execute_parent_tool → ToolExecutor.execute (L211 / L184)</text>
   <rect x="104" y="914" width="592" height="44" rx="6" class="task"/>
-  <text x="110" y="931" class="box-text">任务 handler (L395)：create_task · list_tasks · get_task · claim · complete</text>
+  <text x="110" y="931" class="box-text">任务 handler (L432)：create_task · list_tasks · get_task · claim · complete</text>
   <text x="110" y="951" class="box-text">返回字符串 observation，没有改写 messages 的特权；失败也是 Error: 文本</text>
   <text x="110" y="978" class="box-text">每个 tool_call 配对 role=tool (L218-L224)，整批写完才 compact_history (L407)</text>
 
@@ -113,13 +113,13 @@
 
   <rect x="800" y="126" width="450" height="190" rx="10" class="task"/>
   <text x="820" y="152" class="box-title">task_system.py · 持久任务板（s12 新增）</text>
-  <text x="820" y="176" class="box-text">TASK_TOOLS L49：五个 schema 由模块内 _task_tool L24 构造</text>
-  <text x="820" y="196" class="box-text">SAFE_TASK_ID L21：ID 直接参与文件名，先校验再拼路径</text>
-  <text x="820" y="216" class="box-text">TaskRecord L107 · from_dict L128：磁盘 schema 七项校验</text>
-  <text x="820" y="236" class="box-text">_load L200：文件名 stem 必须等于 JSON id (L211-L214)</text>
-  <text x="820" y="256" class="box-text">blocking_dependencies L249 · can_start L263：依赖唯一实现</text>
-  <text x="820" y="276" class="box-text">claim_task L344 · complete_task L368：严格状态机</text>
-  <text x="820" y="296" class="box-text">handlers() L395：TaskError / OSError → Error: observation</text>
+  <text x="820" y="176" class="box-text">TASK_TOOLS L51：五个 schema 由模块内 _task_tool L25 构造</text>
+  <text x="820" y="196" class="box-text">SAFE_TASK_ID L22：ID 直接参与文件名，先校验再拼路径</text>
+  <text x="820" y="216" class="box-text">TaskRecord L110 · from_dict L133：磁盘 schema 七项校验</text>
+  <text x="820" y="236" class="box-text">_load L213：文件名 stem 必须等于 JSON id (L227-L230)</text>
+  <text x="820" y="256" class="box-text">blocking_dependencies L269 · can_start L283：依赖唯一实现</text>
+  <text x="820" y="276" class="box-text">claim_task L375 · complete_task L402：严格状态机</text>
+  <text x="820" y="296" class="box-text">handlers() L432：TaskError / OSError → Error: observation</text>
 
   <rect x="800" y="340" width="450" height="130" rx="10" class="task"/>
   <text x="820" y="366" class="box-title">严格状态机与 claim 门</text>
@@ -139,7 +139,7 @@
   <text x="820" y="452" class="box-text">拒绝：blocked→claim · pending→complete · 重复 claim · 空 owner</text>
 
   <rect x="800" y="494" width="450" height="150" rx="10" class="task"/>
-  <text x="820" y="520" class="box-title">依赖图 · 由 blockedBy 反向推导 (L249-L261)</text>
+  <text x="820" y="520" class="box-title">依赖图 · 由 blockedBy 反向推导 (L269-L281)</text>
   <rect x="816" y="534" width="130" height="36" rx="8" class="decision"/>
   <text x="881" y="557" text-anchor="middle" class="box-text">task_001 done</text>
   <rect x="978" y="534" width="120" height="36" rx="8" class="decision"/>
@@ -154,7 +154,7 @@
   <text x="820" y="636" class="box-text">只有 completed 解锁下游；缺失的依赖同样一直算 blocker</text>
 
   <rect x="800" y="668" width="450" height="110" rx="10" class="task"/>
-  <text x="820" y="694" class="box-title">原子持久化 · _save L217-L241</text>
+  <text x="820" y="694" class="box-title">原子持久化 · _save L233-L259</text>
   <text x="820" y="718" class="box-text">完整 JSON → 同目录 mkstemp 临时文件 → flush → os.fsync</text>
   <text x="820" y="738" class="box-text">os.replace → chmod 600 → finally unlink，目录本身 mode 700</text>
   <text x="820" y="758" class="box-text">只保证单文件不半写；claim 的读改写没有跨进程锁</text>

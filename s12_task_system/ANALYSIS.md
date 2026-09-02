@@ -2,7 +2,7 @@
 
 > 配套 [README.md](./README.md) 与 [CALLGRAPH.md](./CALLGRAPH.md) 阅读。
 > 行号对应 `s12_task_system/` 当前版本：`code.py` 59 行，`harness/` 16 个模块
-> 共 2880 行；未标模块名的行号属于 `task_system.py`。
+> 共 2919 行；未标模块名的行号属于 `task_system.py`。
 > 对照 [s12 官方教程](https://learn.shareai.run/zh/s12/)和
 > [官方源码](https://github.com/shareAI-lab/learn-claude-code/blob/main/s12_task_system/code.py)。
 
@@ -14,7 +14,7 @@ s12 没有再加一层循环。模型仍然经过同一条路径：
 模型 tool_call
   → AgentHarness._execute_tool_batch          agent_loop.py L186
   → ToolExecutor.execute                      tool_use.py L155
-  → TaskManager handler                       L395-L402
+  → TaskManager handler                       L432-L441
   → role=tool observation                     agent_loop.py L218-L224
   → 下一轮模型调用
 ```
@@ -35,7 +35,7 @@ owner、无依赖；s12 增加了一块磁盘任务板，它在消息被压缩�
 
 ## 二、TaskRecord 是磁盘协议
 
-`TaskRecord`（L107-L116）是 frozen dataclass，六个字段固定：
+`TaskRecord`（L110-L118）是 frozen dataclass，六个字段固定：
 
 ```python
 TaskRecord(
@@ -48,59 +48,59 @@ TaskRecord(
 )
 ```
 
-`to_dict()`（L118）把内部 `blocked_by` 映射回教程公开字段 `blockedBy`，`from_dict()`
-（L128）则是磁盘信任边界。即使文件不是 Harness 刚写的，也必须重新验证：
+`to_dict()`（L120）把内部 `blocked_by` 映射回教程公开字段 `blockedBy`，`from_dict()`
+（L133）则是磁盘信任边界。即使文件不是 Harness 刚写的，也必须重新验证：
 
 | 检查 | 位置 | 拒绝原因 |
 | --- | --- | --- |
-| ID 匹配 `SAFE_TASK_ID` | L137-L138 / L21 | 文件名不安全或不是 `task_` 前缀 |
-| subject 非空字符串 | L139-L140 | 空标题无法在看板上区分任务 |
-| description 是字符串 | L141-L142 | 类型漂移会让 `get_task` 输出不可预测 |
-| status ∈ 三个合法值 | L143-L144 / L20 | 状态机只认识这三个状态 |
-| owner 为 null 或非空 | L145-L146 | `owner: ""` 等于没有归属 |
-| blockedBy 是安全 ID 数组 | L147-L151 | 依赖 ID 会被直接拼成文件路径 |
-| blockedBy 无重复 | L152-L153 | 重复依赖会让 blocker 列表出现重复项 |
+| ID 匹配 `SAFE_TASK_ID` | L143-L144 / L22 | 文件名不安全或不是 `task_` 前缀 |
+| subject 非空字符串 | L145-L146 | 空标题无法在看板上区分任务 |
+| description 是字符串 | L147-L148 | 类型漂移会让 `get_task` 输出不可预测 |
+| status ∈ 三个合法值 | L149-L150 / L20 | 状态机只认识这三个状态 |
+| owner 为 null 或非空 | L152-L153 | `owner: ""` 等于没有归属 |
+| blockedBy 是安全 ID 数组 | L154-L158 | 依赖 ID 会被直接拼成文件路径 |
+| blockedBy 无重复 | L160-L161 | 重复依赖会让 blocker 列表出现重复项 |
 
-`_load()`（L200）在此之上还比较文件名 stem 与 JSON 内的 `id`（L211-L214）。否则复制
+`_load()`（L213）在此之上还比较文件名 stem 与 JSON 内的 `id`（L227-L230）。否则复制
 或手改文件可能让 `get_task("A")` 实际返回任务 B，后续状态更新会写错目标。测试直接
 写入 `{broken` 验证损坏文件被报告且不被覆盖（test_s12.py L776）。
 
 ## 三、ID 与路径边界
 
-默认 ID 由 `_default_id()`（L178-L181）生成：
+默认 ID 由 `_default_id()`（L189-L192）生成：
 
 ```python
 f"task_{time.time_ns()}_{secrets.token_hex(4)}"
 ```
 
 纳秒时间让同目录内的 ID 大致按创建顺序排列，随机后缀降低同一时刻的碰撞概率。
-`_new_id()`（L192-L198）最多尝试十次并在耗尽时抛 `TaskError`，因此错误的自定义
+`_new_id()`（L205-L211）最多尝试十次并在耗尽时抛 `TaskError`，因此错误的自定义
 `id_factory`（例如永远返回同一个字符串）不会造成无限循环。
 
 路径安全由两道独立边界组成，职责不同：
 
 | 边界 | 位置 | 保护对象 |
 | --- | --- | --- |
-| `SAFE_TASK_ID` + `_path()` | L21 / L189-L190 | 单个文件名：不允许斜杠、点开头、超长 ID |
+| `SAFE_TASK_ID` + `_path()` | L22 / L202-L203 | 单个文件名：不允许斜杠、点开头、超长 ID |
 | `assert_inside_workdir` | agent_loop.py L75-L77 / config.py L54-L60 | 整个任务目录不得逃逸 `CC_WORKDIR` |
 
 前者让 `get_task("../secret")` 直接返回 `Error:`（test_s12.py L759），后者让
 `CC_TASKS_DIR` 指向工作区外时 `AgentHarness` 构造即抛 `ValueError`
-（test_s12.py L783）。目录本身也以 `mode=0o700` 创建（L175）。
+（test_s12.py L783）。目录本身也以 `mode=0o700` 创建（L186）。
 
 ## 四、写盘为什么必须用临时文件
 
 直接 `write_text()` 会先截断正式文件。如果进程在 JSON 只写了一半时退出，跨会话恢复
-反而读到损坏状态——这恰好摧毁了持久化的意义。`_save()`（L217-L241）的顺序是：
+反而读到损坏状态——这恰好摧毁了持久化的意义。`_save()`（L233-L259）的顺序是：
 
 ```text
-mkstemp(prefix=".{id}.", dir=tasks_dir)     L221-L225
-  → json.dump 完整记录                       L229-L235
-  → flush                                    L236
-  → os.fsync                                 L237
-  → os.replace(temp, final)                  L238
-  → chmod(final, 0o600)                      L239
-  → finally: unlink(missing_ok=True)         L241
+mkstemp(prefix=".{id}.", dir=tasks_dir)     L237-L241
+  → json.dump 完整记录                       L245-L251
+  → flush                                    L252
+  → os.fsync                                 L253
+  → os.replace(temp, final)                  L255
+  → chmod(final, 0o600)                      L256
+  → finally: unlink(missing_ok=True)         L259
 ```
 
 临时文件与目标在同一目录，`os.replace` 才能保持同一文件系统上的原子替换。`finally`
@@ -108,76 +108,76 @@ mkstemp(prefix=".{id}.", dir=tasks_dir)     L221-L225
 （test_s12.py L667）。
 
 这个原子性只覆盖"一个 writer 不留下半个文件"。claim 是
-`_load → 检查 → _save` 三步（L346-L363），两个进程可能同时通过检查；没有文件锁就
+`_load → 检查 → _save` 三步（L379-L397），两个进程可能同时通过检查；没有文件锁就
 没有跨进程互斥。
 
 ## 五、依赖检查只有一处实现
 
-`blocking_dependencies(task)`（L249-L261）是依赖语义的单一事实来源：
+`blocking_dependencies(task)`（L269-L281）是依赖语义的单一事实来源：
 
 ```text
 for dependency_id in task.blocked_by:
-    TaskNotFound        → blocker      L256-L258
-    status != completed → blocker      L259-L260
+    TaskNotFound        → blocker      L276-L278
+    status != completed → blocker      L279-L280
     completed           → satisfied
 ```
 
-`can_start()`（L263-L264）只判断 blocker 列表是否为空；`claim_task()` 在真正写状态前
-再次调用同一函数（L353）；`list_tasks()` 的 ready / blocked 展示也用它（L322）。因此
+`can_start()`（L283-L286）只判断 blocker 列表是否为空；`claim_task()` 在真正写状态前
+再次调用同一函数（L387）；`list_tasks()` 的 ready / blocked 展示也用它（L351）。因此
 看板显示"ready"与 claim 实际能否成功永远不会使用两套规则，测试对这两者同时断言
 （test_s12.py L683）。
 
 缺失依赖不抛出整个调用，而是留在 blocker 列表里。拼错 ID 的任务会明确显示
 `blocked by task_missing`，不会因为读不到依赖就被错误放行（test_s12.py L698）。
 
-`_normalize_dependencies()`（L266-L281）在创建时做输入侧清理：非数组直接报错
-（L270-L271）、非法 ID 报错（L274-L278）、重复项按首次出现顺序去重（L279-L280）。
-`create_task()` 随后拒绝任务把自己列为依赖（L296-L297）——这是本章唯一的环检测，只
+`_normalize_dependencies()`（L289-L305）在创建时做输入侧清理：非数组直接报错
+（L294-L295）、非法 ID 报错（L298-L302）、重复项按首次出现顺序去重（L303-L304）。
+`create_task()` 随后拒绝任务把自己列为依赖（L323-L324）——这是本章唯一的环检测，只
 覆盖长度为 1 的自环。
 
 ## 六、严格状态机
 
-### claim_task（L344-L366）
+### claim_task（L375-L400）
 
 ```text
-_load task                                  L346
-  → status 必须是 pending                   L347-L350
-  → owner 必须非空                          L351-L352
-  → blocking_dependencies 必须为空          L353-L357
-  → replace(status=in_progress, owner=…)    L358-L362
-  → 原子写盘                                L363
-  → "Claimed …"                             L364
+_load task                                  L379
+  → status 必须是 pending                   L381-L384
+  → owner 必须非空                          L385-L386
+  → blocking_dependencies 必须为空          L387-L391
+  → replace(status=in_progress, owner=…)    L392-L396
+  → 原子写盘                                L397
+  → "Claimed …"                             L398
 ```
 
 检查顺序让错误有稳定含义：已经 in_progress 的任务返回
 `is in_progress, cannot claim`，不会再去讨论它的依赖是否完成。测试逐个断言这四类
 拒绝文本（test_s12.py L710）。
 
-### complete_task（L368-L393）
+### complete_task（L402-L430）
 
 ```text
-_load task                                  L370
-  → status 必须是 in_progress               L371-L374
-  → replace(status=completed) + 写盘        L375
-  → 扫描直接下游                            L379-L385
-  → "Completed …" (+ "Unblocked: …")        L386-L391
+_load task                                  L406
+  → status 必须是 in_progress               L407-L410
+  → replace(status=completed) + 写盘        L412
+  → 扫描直接下游                            L416-L422
+  → "Completed …" (+ "Unblocked: …")        L423-L427
 ```
 
 教程示例函数直接把状态设为 completed，但同一页定义的生命周期是
 pending → in_progress → completed。本仓库选择严格执行状态机，因此 pending 不能跳过
 claim（`is pending, cannot complete`）。
 
-下游报告有三个同时成立的条件（L382-L384）：candidate 仍是 pending、它的 `blockedBy`
+下游报告有三个同时成立的条件（L419-L421）：candidate 仍是 pending、它的 `blockedBy`
 包含刚完成的 task_id、它其余的 blocker 现在为空。这个交集避免把早就 ready 的无关任务
 写进 `Unblocked`，测试用一个"独立清理任务"做反向断言（test_s12.py L736）。
 
-顺序上先持久化再扫描（L375 早于 L379），所以扫描时 `blocking_dependencies()` 读到的
+顺序上先持久化再扫描（L412 早于 L416），所以扫描时 `blocking_dependencies()` 读到的
 已经是新的 completed 状态。
 
 ## 七、五个工具怎样进入现有架构
 
-`task_system.py` 同时拥有任务数据、行为和 `TASK_TOOLS` schema（L49-L96）。它不导入
-`tool_use.py`，schema 由模块内 `_task_tool()`（L24-L46）构造，形状与 s02 的
+`task_system.py` 同时拥有任务数据、行为和 `TASK_TOOLS` schema（L51-L98）。它不导入
+`tool_use.py`，schema 由模块内 `_task_tool()`（L25-L47）构造，形状与 s02 的
 `function_tool()` 一致：`type=function`、`additionalProperties=False`、
 显式 `required`。方向单一，因此不存在 `tool_use ↔ task_system` 循环依赖。
 
@@ -240,7 +240,7 @@ System Prompt：需要状态时调用 `list_tasks`，需要描述时调用 `get_
 ## 十、错误与恢复边界
 
 `TaskManager` 的五个公开 handler 都把 `TaskError` / `OSError` 捕获成
-`Error: ...` 字符串（L311-L312、L334-L335、L341-L342、L365-L366、L392-L393）。这一点
+`Error: ...` 字符串（L338-L339、L363-L364、L372-L373、L399-L400、L429-L430）。这一点
 决定了任务失败落在哪一层：它是一次**成功**模型响应里的工具 observation，模型应据此
 修正 ID 或等待依赖，而不是让 s11 把它误判成模型 API 故障。
 
@@ -357,18 +357,18 @@ s12 任务系统（`TaskSystemTest`，10 项）：
 ### 1. 并发只到"单文件不半写"
 
 `os.replace` 保证任何时刻读到的任务文件都是完整 JSON，但 claim 的
-read-modify-write 没有跨进程锁（L346-L363）。单 Agent 使用没有问题；要支持多进程
+read-modify-write 没有跨进程锁（L379-L397）。单 Agent 使用没有问题；要支持多进程
 竞争认领，需要文件锁、`O_EXCL` 标记文件或数据库事务。
 
 ### 2. 任务图能力有意保持最小
 
 没有修改依赖、删除任务、release / reopen 的公开工具，也没有通用环检测——只拒绝自环
-（L296-L297）。因为公开工具只能在创建时声明依赖，正常流程难以构造长环；手工编辑 JSON
+（L323-L324）。因为公开工具只能在创建时声明依赖，正常流程难以构造长环；手工编辑 JSON
 仍可能造成永久阻塞，此时只能继续手工修复。
 
 ### 3. 规模与可见性
 
-`_all()`（L243-L247）每次都读取全部 `task_*.json`，`list_tasks` 与
+`_all()`（L261-L267）每次都读取全部 `task_*.json`，`list_tasks` 与
 `complete_task` 的下游扫描都建立在它之上；任务数量很大时没有索引、缓存或分页。任务板
 也不自动注入 System Prompt，模型必须主动 `list_tasks` 才知道当前状态。
 

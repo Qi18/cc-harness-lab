@@ -18,8 +18,8 @@
 | 区域 | 内容 | 对应代码 |
 | --- | --- | --- |
 | 左列 ⓪–⑤ | 装配 → turn 开始 → 请求与瞬态恢复 → 响应分类 → 工具批次 → turn 结束 | L54-L124、L242-L410 |
-| 左列紫底行 | s12 唯一的两处改动：装配任务板、任务 handler 走普通分发 | L75-L78、L121、L395 |
-| 右列上四块 | 任务板自身：模块结构、严格状态机、依赖图、原子持久化 | L21-L402 |
+| 左列紫底行 | s12 唯一的两处改动：装配任务板、任务 handler 走普通分发 | L75-L78、L121、L432 |
+| 右列上四块 | 任务板自身：模块结构、严格状态机、依赖图、原子持久化 | L22-L441 |
 | 右列下五块 | 复用的子系统：s11 恢复、工具与 Hook 管线、s10 Prompt、s08 Compact、s09 Memory | error_recovery.py L126 等 |
 
 配色沿用前几章约定，与上面的图例一一对应：紫色是 s12 新增的任务板路径，红色是 s11
@@ -37,7 +37,7 @@ SubAgent 在两张表里都拿不到任务工具。
 | `sleep_fn` / `random_fn` 参数 | L59-L60 | 🔴 退避时钟与抖动可注入，测试不等待 |
 | `SkillLoader` / `TodoManager` | L73-L74 | 先建有状态能力 |
 | `settings.assert_inside_workdir` | L75-L77 / config.py L54 | 🟣 tasks 目录逃逸工作区则构造即失败 |
-| `TaskManager(tasks_dir)` | L78 / L165 | 🟣 目录以 mode 700 建立，注册五个 handler |
+| `TaskManager(tasks_dir)` | L78 / L173 | 🟣 目录以 mode 700 建立，注册五个 handler |
 | `BuiltinTools` | L79 | 文件与 Bash handler |
 | `install_default_hooks` → `ToolExecutor` | L83-L84 | Hook 必须早于执行器 |
 | `CompactToolController` / `ContextCompactor` | L87-L93 | 🔵 控制面与算法面分离 |
@@ -45,7 +45,7 @@ SubAgent 在两张表里都拿不到任务工具。
 | 父 / 子 `SystemPromptAssembler` | L98-L103 | 🟢 身份不同，缓存也各自独立 |
 | `refresh_system_prompts()` | L106 | 🟢 首版 Prompt 已含五个任务工具名 |
 | `SubagentRunner(prompt_supplier=…)` | L111-L117 | 子 Agent 只拿到 `builtins.handlers()` |
-| `**self.tasks.handlers()` | L121 / L395 | 🟣 任务 handler 只进父表，不进子表 |
+| `**self.tasks.handlers()` | L121 / L432 | 🟣 任务 handler 只进父表，不进子表 |
 
 装配同时建立两道隔离：`TASK_TOOLS` 只出现在 `PARENT_TOOLS`
 （tool_use.py L137-L144），决定模型**看不看得到**任务工具；`self.tasks.handlers()`
@@ -108,7 +108,7 @@ SubAgent 在两张表里都拿不到任务工具。
 | ↳ `CompactToolController.request` | L204 / context_compact.py L364 | 🔵 校验空参数、走 Hook、每 turn 限一次 |
 | ↳ `_execute_parent_tool` → `ToolExecutor.execute` | L211 / L184 / tool_use.py L155 | 解析 → PreToolUse → handler → PostToolUse |
 | ↳ `PermissionPolicy.check` | hooks.py L70 / permission.py L73 | 硬拒绝或交互确认，返回非 None 即短路 |
-| ↳ 任务 handler | tool_use.py L182 / L395-L402 | 🟣 `create_task` … `complete_task` 返回字符串 |
+| ↳ 任务 handler | tool_use.py L182 / L432-L441 | 🟣 `create_task` … `complete_task` 返回字符串 |
 | `role=tool` 双写 | L218-L224 | 每个 `tool_call_id` 都要有配对结果 |
 | `compactor.compact_history` | L407-L410 / context_compact.py L274 | 🔵 批次收尾才真正改写历史 |
 
@@ -134,26 +134,26 @@ continuation 上限返回（L361）、第二次 prompt 溢出走同一个 L321�
 ```text
 agent_loop.py
 ├─ assert_inside_workdir(settings.tasks_dir)   L75-L77   config.py L54
-├─ TaskManager(tasks_dir)                      L78       task_system.py L165
-│  ├─ mkdir(mode=0o700)                                  L175
-│  └─ _id_factory = id_factory or _default_id             L176 / L178
-├─ tasks.handlers()                            L121      L395-L402
+├─ TaskManager(tasks_dir)                      L78       task_system.py L173
+│  ├─ mkdir(mode=0o700)                                  L186
+│  └─ _id_factory = id_factory or _default_id             L187 / L189
+├─ tasks.handlers()                            L121      L432-L441
 └─ ToolExecutor.execute(name, args, handlers)   L184      tool_use.py L155
    └─ handler(**payload)                                  tool_use.py L182
-      ├─ create_task                                      L283
-      │  ├─ _normalize_dependencies                       L266
-      │  ├─ _new_id → _validate_id → _path                L192 / L183 / L189
-      │  └─ _save                                         L217
-      ├─ list_tasks                                       L314
-      │  ├─ _all → _load → TaskRecord.from_dict           L243 / L200 / L128
-      │  └─ blocking_dependencies                         L249
-      ├─ get_task → _load                                 L337 / L200
-      ├─ claim_task                                       L344
-      │  ├─ status / owner / blocker 检查                  L347 / L351 / L353
-      │  └─ replace + _save                               L358 / L363
-      └─ complete_task                                    L368
-         ├─ status 检查 + _save(completed)                 L371 / L375
-         └─ 下游扫描 → Unblocked 列表                      L379-L391
+      ├─ create_task                                      L307
+      │  ├─ _normalize_dependencies                       L289
+      │  ├─ _new_id → _validate_id → _path                L205 / L195 / L202
+      │  └─ _save                                         L233
+      ├─ list_tasks                                       L341
+      │  ├─ _all → _load → TaskRecord.from_dict           L261 / L213 / L133
+      │  └─ blocking_dependencies                         L269
+      ├─ get_task → _load                                 L366 / L213
+      ├─ claim_task                                       L375
+      │  ├─ status / owner / blocker 检查                  L381 / L385 / L387
+      │  └─ replace + _save                               L392 / L397
+      └─ complete_task                                    L402
+         ├─ status 检查 + _save(completed)                 L407 / L412
+         └─ 下游扫描 → Unblocked 列表                      L416-L427
 ```
 
 ## 五个工具的内部路径
@@ -162,13 +162,13 @@ agent_loop.py
 
 ```text
 subject / description / blockedBy
-  → 字段类型校验                     L290-L293
-  → normalize dependencies（去重、保序、安全 ID）   L266-L281
-  → 生成 task_<time_ns>_<hex>        L192-L198 / L178-L181
-  → 拒绝自依赖                       L296-L297
-  → TaskRecord(status=pending, owner=None)   L298-L305
-  → _save：同目录临时文件 → flush → fsync → os.replace → chmod 600   L217-L241
-  → "Created …" + 完整 JSON          L307-L310
+  → 字段类型校验                     L316-L319
+  → normalize dependencies（去重、保序、安全 ID）   L289-L305
+  → 生成 task_<time_ns>_<hex>        L205-L211 / L189-L192
+  → 拒绝自依赖                       L323-L324
+  → TaskRecord(status=pending, owner=None)   L325-L332
+  → _save：同目录临时文件 → flush → fsync → os.replace → chmod 600   L233-L259
+  → "Created …" + 完整 JSON          L334-L337
 ```
 
 创建时允许引用还不存在的依赖。任务不会失败，但会一直显示 blocked，直到对应文件存在
@@ -177,48 +177,48 @@ subject / description / blockedBy
 ### list_tasks / get_task
 
 ```text
-list_tasks                                   L314
-  → _all：sorted(glob("task_*.json"))        L243-L247
-  → 每个文件 _load + from_dict 校验          L200 / L128
-  → pending：blockers 非空 → "blocked by …"  L321-L327
+list_tasks                                   L341
+  → _all：sorted(glob("task_*.json"))        L261-L267
+  → 每个文件 _load + from_dict 校验          L213 / L133
+  → pending：blockers 非空 → "blocked by …"  L350-L356
              blockers 为空 → "ready"
-  → in_progress → "in_progress owner=…"      L328-L329
-  → completed                                L330-L331
-  → 空目录 → "(no tasks)"                    L317-L318
+  → in_progress → "in_progress owner=…"      L357-L358
+  → completed                                L359-L360
+  → 空目录 → "(no tasks)"                    L346-L347
 
-get_task(task_id)                            L337
-  → 安全 ID → 文件存在 → JSON/schema/文件名一致  L189 / L202 / L210-L214
-  → 完整格式化 JSON                          L340
+get_task(task_id)                            L366
+  → 安全 ID → 文件存在 → JSON/schema/文件名一致  L202 / L217 / L225-L230
+  → 完整格式化 JSON                          L371
 ```
 
 list 用于看板，get 用于恢复具体描述；完整 description 不常驻 System Prompt。任何一个
-文件损坏都会让 `list_tasks` 返回 `Error: cannot read task …`（L206-L207），而不是
+文件损坏都会让 `list_tasks` 返回 `Error: cannot read task …`（L221-L222），而不是
 静默跳过。
 
 ### claim_task
 
 ```text
-_load task                       L346
-  ├─ status != pending           → "is {status}, cannot claim"      L347-L350
-  ├─ owner 为空                  → "owner must be a non-empty …"    L351-L352
-  ├─ blocking_dependencies 非空  → "blocked by: id1, id2"           L353-L357
-  └─ 全部通过 → replace(in_progress, owner) → _save → "Claimed …"   L358-L364
+_load task                       L379
+  ├─ status != pending           → "is {status}, cannot claim"      L381-L384
+  ├─ owner 为空                  → "owner must be a non-empty …"    L385-L386
+  ├─ blocking_dependencies 非空  → "blocked by: id1, id2"           L387-L391
+  └─ 全部通过 → replace(in_progress, owner) → _save → "Claimed …"   L392-L398
 ```
 
-缺失依赖与未完成依赖走同一个 blocker 出口（L256-L260）。状态检查先于依赖检查，已被
+缺失依赖与未完成依赖走同一个 blocker 出口（L276-L280）。状态检查先于依赖检查，已被
 认领的任务会稳定返回 `cannot claim`，不会因为依赖图后来变化而改写错误原因。
 
 ### complete_task
 
 ```text
-_load task                       L370
-  ├─ status != in_progress       → "is {status}, cannot complete"   L371-L374
-  └─ replace(completed) → _save                                     L375
-       → 扫描全部任务                                               L379-L385
+_load task                       L406
+  ├─ status != in_progress       → "is {status}, cannot complete"   L407-L410
+  └─ replace(completed) → _save                                     L412
+       → 扫描全部任务                                               L416-L422
            candidate.status == pending
            且 task_id ∈ candidate.blocked_by
            且 blocking_dependencies(candidate) 为空
-       → "Completed …" (+ "Unblocked: id (subject), …")              L386-L391
+       → "Completed …" (+ "Unblocked: id (subject), …")              L423-L427
 ```
 
 先持久化再扫描，所以扫描时读到的已经是新的 completed 状态；三个条件的交集保证早已
@@ -229,11 +229,11 @@ ready 的无关任务不会被误报成"刚刚解锁"。
 | 位置 | 检查 | 失败输出 |
 | --- | --- | --- |
 | `AgentHarness.__init__` | tasks_dir 必须在 workdir 内 | 构造时 `ValueError`（L75-L77） |
-| `_validate_id` / `_path` | ID 必须匹配 `SAFE_TASK_ID` | `Error:` observation（L21 / L183） |
+| `_validate_id` / `_path` | ID 必须匹配 `SAFE_TASK_ID` | `Error:` observation（L22 / L195） |
 | `ToolExecutor` | arguments 必须是 JSON object | `Error:` observation（tool_use.py L163-L167） |
-| 任务 handler | 输入、状态、依赖、IO | `Error:` observation（L311、L334、L341、L365、L392） |
-| `TaskRecord.from_dict` | 磁盘 schema 与字段类型 | `Error:` observation（L137-L153） |
-| `_load` | 文件名 stem 必须等于 JSON `id` | `Error:` observation（L211-L214） |
+| 任务 handler | 输入、状态、依赖、IO | `Error:` observation（L338、L363、L372、L399、L429） |
+| `TaskRecord.from_dict` | 磁盘 schema 与字段类型 | `Error:` observation（L143-L161） |
+| `_load` | 文件名 stem 必须等于 JSON `id` | `Error:` observation（L227-L230） |
 | s11 `with_retry` | 429 / 529 等模型请求失败 | 重试 / fallback（error_recovery.py L126） |
 | Permission / Hooks | 工具生命周期策略 | 阻止或观察（permission.py L73 / hooks.py L70） |
 
@@ -273,13 +273,13 @@ complete task_001 → Unblocked: task_002 (API), task_003 (docs)
 
 ## 三条贯穿性线索
 
-1. **磁盘是唯一事实来源。** 每次 `_save` 都是完整记录的原子替换（L217-L241），每次
-   读取都重新校验 schema 与文件名一致性（L128、L211-L214）。因此进程重启、上下文压缩
+1. **磁盘是唯一事实来源。** 每次 `_save` 都是完整记录的原子替换（L233-L259），每次
+   读取都重新校验 schema 与文件名一致性（L133、L227-L230）。因此进程重启、上下文压缩
    或 Memory 提取都不会改变任务状态，测试用一个全新 `TaskManager` 实例验证这一点
    （test_s12.py L751）。
-2. **依赖判定只有一处实现。** `blocking_dependencies()`（L249-L261）同时服务于看板
-   展示（L322）、`can_start()`（L263）、claim 前置检查（L353）与完成后的下游扫描
-   （L384）。缺失文件与未完成状态共用一个 blocker 出口，因此"看起来 ready"和"真的
+2. **依赖判定只有一处实现。** `blocking_dependencies()`（L269-L281）同时服务于看板
+   展示（L351）、`can_start()`（L283）、claim 前置检查（L387）与完成后的下游扫描
+   （L421）。缺失文件与未完成状态共用一个 blocker 出口，因此"看起来 ready"和"真的
    能 claim"永远一致。
 3. **能力隔离由两张表共同保证。** schema 表决定模型能请求什么
    （tool_use.py L137-L145），handler 表决定本地真正执行什么（L119-L124）。SubAgent
