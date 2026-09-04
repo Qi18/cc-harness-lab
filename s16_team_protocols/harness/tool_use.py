@@ -153,6 +153,8 @@ COMPACT_TOOL = function_tool(
 # handler 表也只会返回 unknown tool。
 # Cron 与 Team 三件套同样只进 PARENT_TOOLS；队友又有自己的 TEAMMATE_TOOLS，
 # 因此“能不能再递归组队”不靠 Prompt 叮嘱，而是三张表彼此隔开。
+# s16 的协议三件也只进父表：发起关机、讨计划、审计划都是 Lead 的职责，
+# 队友那边只多一个 submit_plan，“提交”与“审批”因此天然不在同一张表里。
 # 所以能力隔离由注册表和 handler 表共同保证，而不只依赖 SubAgent Prompt。
 PARENT_TOOLS = [
     BACKGROUND_BASH_TOOL,

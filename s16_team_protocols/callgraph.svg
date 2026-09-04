@@ -1,0 +1,241 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1820" viewBox="0 0 1280 1820">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#667085"/>
+    </marker>
+    <marker id="arrow-light" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#98a2b3"/>
+    </marker>
+    <marker id="arrow-proto" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#dc6803"/>
+    </marker>
+    <marker id="arrow-team" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#06aed4"/>
+    </marker>
+    <style>
+      .title { font: 700 20px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #101828; }
+      .subtitle { font: 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #667085; }
+      .legend { font: 12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #475467; }
+      .box-title { font: 700 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #101828; }
+      .box-text { font: 12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #475467; }
+      .edge-label { font: 11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #667085; }
+      .edge { stroke: #667085; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+      .link { stroke: #98a2b3; stroke-width: 1.1; fill: none; stroke-dasharray: 4 4; marker-end: url(#arrow-light); }
+      .flow { stroke: #dc6803; stroke-width: 1.4; fill: none; marker-end: url(#arrow-proto); }
+      .transition { stroke: #06aed4; stroke-width: 1.4; fill: none; marker-end: url(#arrow-team); }
+      .stage { fill: #f9fafb; stroke: #98a2b3; }
+      .decision { fill: #ffffff; stroke: #667085; }
+      .protocol { fill: #fffaeb; stroke: #dc6803; }
+      .team { fill: #ecfeff; stroke: #06aed4; }
+      .cron { fill: #eef4ff; stroke: #6172f3; }
+      .background { fill: #f0fdf9; stroke: #0e9384; }
+      .recovery { fill: #fef3f2; stroke: #f97066; }
+      .prompt { fill: #ecfdf3; stroke: #32d583; }
+      .memory { fill: #fff6ed; stroke: #f79009; }
+      .compact { fill: #eff8ff; stroke: #53b1fd; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="1820" fill="#ffffff"/>
+  <text x="32" y="38" class="title">s16 一个 Lead turn 的调用图 · Team Protocols 与请求-响应握手</text>
+  <text x="32" y="60" class="subtitle">左列是 Lead（父 Agent）的五个阶段，琥珀底为 s16 新增的协议路径，青底为 s15 团队路径；右列是被调用的子系统；未标模块名的行号属于 agent_loop.py。</text>
+
+  <rect x="32" y="76" width="14" height="14" rx="3" class="protocol"/>
+  <text x="52" y="88" class="legend">Protocols（s16）</text>
+  <rect x="205" y="76" width="14" height="14" rx="3" class="team"/>
+  <text x="225" y="88" class="legend">Teams（s15）</text>
+  <rect x="350" y="76" width="14" height="14" rx="3" class="cron"/>
+  <text x="370" y="88" class="legend">Cron（s14）</text>
+  <rect x="488" y="76" width="14" height="14" rx="3" class="background"/>
+  <text x="508" y="88" class="legend">Background（s13）</text>
+  <rect x="668" y="76" width="14" height="14" rx="3" class="recovery"/>
+  <text x="688" y="88" class="legend">恢复（s11）</text>
+  <rect x="802" y="76" width="14" height="14" rx="3" class="prompt"/>
+  <text x="822" y="88" class="legend">Prompt（s10）</text>
+  <rect x="954" y="76" width="14" height="14" rx="3" class="memory"/>
+  <text x="974" y="88" class="legend">Memory（s09）</text>
+  <rect x="1106" y="76" width="14" height="14" rx="3" class="compact"/>
+  <text x="1126" y="88" class="legend">Compact（s08）</text>
+
+  <rect x="90" y="126" width="620" height="150" rx="10" class="stage"/>
+  <text x="110" y="152" class="box-title">⓪ 装配 · code.py → AgentHarness.__init__</text>
+  <text x="110" y="176" class="box-text">Skill / Todo / Task / Background / Cron / Hook → ToolExecutor (L78-L113)</text>
+  <rect x="104" y="204" width="592" height="64" rx="6" class="protocol"/>
+  <text x="110" y="222" class="box-text">AgentTeamManager (L134-L140) → TeamProtocolManager (team L362-L366)</text>
+  <text x="110" y="242" class="box-text">协议层只收两个回调：_send_bus 与 _active_name（proto L124-L125）</text>
+  <text x="110" y="262" class="box-text">team.handlers() → _parent_handlers (L146)：六个 handler，三个来自协议层</text>
+
+  <rect x="90" y="294" width="620" height="176" rx="10" class="stage"/>
+  <text x="110" y="320" class="box-title">① turn 开始 · 每 turn 一次</text>
+  <text x="110" y="344" class="box-text">cron.consume_queue (L445) · active_request (L446-L451) · deepcopy 快照 (L455)</text>
+  <text x="110" y="364" class="box-text">_inject_scheduled_jobs (L456) · 收集点① 后台通知 (L462)</text>
+  <rect x="104" y="372" width="592" height="64" rx="6" class="protocol"/>
+  <text x="110" y="390" class="box-text">收信点① _inject_team_messages (L463 / L325) → consume_lead_messages</text>
+  <text x="110" y="410" class="box-text">每封信先过 route_lead_message (team L707 / proto L371)：只关联 *_response</text>
+  <text x="110" y="430" class="box-text">未匹配的响应 → [protocol] ignored 审计行 (team L708-L712)</text>
+  <text x="110" y="458" class="box-text">refresh_system_prompts (L466)：guidance 增加协议三件 (system_prompt.py L21-L24)</text>
+
+  <rect x="90" y="488" width="620" height="180" rx="10" class="stage"/>
+  <text x="110" y="514" class="box-title">② 请求与瞬态恢复 · 每轮一次</text>
+  <rect x="104" y="524" width="592" height="44" rx="6" class="protocol"/>
+  <text x="110" y="542" class="box-text">收信点② (L485)：队友的 plan_approval_request 在这里到账</text>
+  <text x="110" y="562" class="box-text">协议消息同样先落邮箱，再由收信点注入：messages 仍只有一个写者</text>
+  <text x="110" y="588" class="box-text">收集点② 后台通知 (L484) · refresh_system_prompts + compactor.prepare (L497)</text>
+  <rect x="104" y="596" width="592" height="24" rx="6" class="decision"/>
+  <text x="110" y="613" class="box-text">with_retry (L504-L517)：429 / 529 退避重试，期间队友可能正在 idle 等待</text>
+  <rect x="104" y="626" width="592" height="24" rx="6" class="recovery"/>
+  <text x="110" y="643" class="box-text">prompt too long → reactive_compact 后 continue (L521-L533)</text>
+
+  <rect x="290" y="686" width="220" height="38" rx="10" class="decision"/>
+  <text x="400" y="710" text-anchor="middle" class="box-text">assistant.tool_calls ?</text>
+
+  <rect x="90" y="746" width="620" height="176" rx="10" class="stage"/>
+  <text x="110" y="772" class="box-title">③ 工具批次 (L639-L644 / L382)</text>
+  <text x="110" y="796" class="box-text">compact 内联拦截 · 其他 → _dispatch_parent_tool (L274)：权限先行</text>
+  <rect x="104" y="804" width="592" height="84" rx="6" class="protocol"/>
+  <text x="110" y="822" class="box-text">request_shutdown (proto L208)：建 pending + 发 shutdown_request</text>
+  <text x="110" y="842" class="box-text">request_plan (proto L246)：只是一条普通 message，不建请求</text>
+  <text x="110" y="862" class="box-text">review_plan (proto L294)：锁内推进状态，再把结论发回队友</text>
+  <text x="110" y="882" class="box-text">三件都立即返回一句文本，从不阻塞等待对端（proto L244 / L264 / L341）</text>
+  <text x="110" y="908" class="box-text">spawn_teammate / send_message / check_inbox 仍走 s15 原路 (team L730-L739)</text>
+
+  <rect x="90" y="962" width="620" height="150" rx="10" class="stage"/>
+  <text x="110" y="988" class="box-title">④ turn 结束 · 协议响应也能推翻最终答案</text>
+  <rect x="104" y="998" width="592" height="64" rx="6" class="protocol"/>
+  <text x="110" y="1016" class="box-text">收集点③ 后台通知 (L614-L616) · 收信点③ (L617-L619) 返回消息条数</text>
+  <text x="110" y="1036" class="box-text">shutdown_response 到账 → team_count&gt;0 → continue (L620-L621)</text>
+  <text x="110" y="1056" class="box-text">于是“请求关机 → 队友回复 → 才敢说团队已停”在一个 turn 内闭合</text>
+  <text x="110" y="1084" class="box-text">Stop Hook (L625) → extract_memories (L633) → return answer (L635)</text>
+
+  <line x1="400" y1="276" x2="400" y2="292" class="edge"/>
+  <line x1="400" y1="470" x2="400" y2="486" class="edge"/>
+  <line x1="400" y1="668" x2="400" y2="684" class="edge"/>
+  <line x1="400" y1="724" x2="400" y2="744" class="edge"/>
+  <text x="408" y="740" class="edge-label">有</text>
+
+  <path d="M510 705 L736 705 L736 986 L713 986" class="edge"/>
+  <text x="516" y="698" class="edge-label">无 tool_calls</text>
+
+  <path d="M90 822 L62 822 L62 512 L86 512" class="edge"/>
+  <text x="6" y="802" class="edge-label">回到 ②</text>
+
+  <rect x="90" y="1152" width="620" height="190" rx="10" class="stage"/>
+  <text x="110" y="1178" class="box-title">四条时间线 · 请求表是新增的跨线程共享结构</text>
+  <text x="110" y="1202" class="box-text">主线程　input() (code.py L52) → run_turn 持锁跑 agent_loop → 可交互授权</text>
+  <text x="110" y="1222" class="box-text">cron-scheduler / cron-queue-processor　s14 两条线仍在，后者持锁后才改 messages</text>
+  <text x="110" y="1242" class="box-text">cc-teammate-*　常驻：working → idle 之间反复，只写邮箱与自己的历史</text>
+  <text x="110" y="1262" class="box-text">Lead 与队友都会推进请求状态，全部收进 proto L133 的同一把 RLock</text>
+  <text x="110" y="1282" class="box-text">idle 等待不发模型请求：常驻队友的 token 成本为零 (team L638-L640)</text>
+  <text x="110" y="1312" class="box-text">队友是非主线程：敏感 bash 需要交互授权时直接被拒 (permission.py L85-L86)</text>
+
+  <rect x="800" y="126" width="450" height="206" rx="10" class="protocol"/>
+  <text x="820" y="152" class="box-title">team_protocols.py · 协议设施（s16 新增）</text>
+  <text x="820" y="176" class="box-text">VALID_REQUEST_ID L15 / EXPECTED_RESPONSE L18-L21</text>
+  <text x="820" y="196" class="box-text">PROTOCOL_TOOLS L48-L74：三个 schema，只进 PARENT_TOOLS</text>
+  <text x="820" y="216" class="box-text">SUBMIT_PLAN_TOOL L77-L82：队友侧唯一的协议工具</text>
+  <text x="820" y="236" class="box-text">ProtocolState L85-L97：request_id / type / sender / target / status</text>
+  <text x="820" y="256" class="box-text">ProtocolDispatch L100-L109：handled / stop / event 三个信号</text>
+  <text x="820" y="276" class="box-text">TeamProtocolManager L112-L533：请求表 + 两侧路由</text>
+  <text x="820" y="296" class="box-text">一个内部模块都不导入，位于依赖层 L0</text>
+  <text x="820" y="320" class="box-text">看不见邮箱、线程与 messages，因此可被单测直接构造</text>
+
+  <rect x="800" y="354" width="450" height="176" rx="10" class="protocol"/>
+  <text x="820" y="380" class="box-title">请求 FSM · 只允许推进一次</text>
+  <rect x="814" y="396" width="118" height="40" rx="8" class="decision"/>
+  <text x="873" y="421" text-anchor="middle" class="box-text">pending</text>
+  <rect x="984" y="390" width="126" height="32" rx="8" class="decision"/>
+  <text x="1047" y="411" text-anchor="middle" class="box-text">approved</text>
+  <rect x="984" y="434" width="126" height="32" rx="8" class="decision"/>
+  <text x="1047" y="455" text-anchor="middle" class="box-text">rejected</text>
+  <path d="M932 410 L960 410 L960 406 L980 406" class="flow"/>
+  <path d="M932 426 L960 426 L960 450 L980 450" class="flow"/>
+  <text x="1120" y="411" class="edge-label">approve=true</text>
+  <text x="1120" y="455" class="edge-label">approve=false</text>
+  <text x="820" y="484" class="box-text">推进只发生在 review_plan (L313) 与 match_response (L368)</text>
+  <text x="820" y="504" class="box-text">非 pending 即拒绝：重放改不了已结案的结论 (L365-L367)</text>
+  <text x="820" y="524" class="box-text">发信失败 → _discard_pending / 回退 pending (L178 / L330-L339)</text>
+
+  <rect x="800" y="550" width="450" height="140" rx="10" class="protocol"/>
+  <text x="820" y="576" class="box-title">两侧路由 · Lead 关联，队友分派</text>
+  <text x="820" y="600" class="box-text">route_lead_message L371-L379 → match_response L343-L369</text>
+  <text x="820" y="620" class="box-text">四重校验：ID / 类型 / from-to 反向一致 / 状态仍 pending</text>
+  <text x="820" y="640" class="box-text">dispatch_teammate_message L381-L393：两类协议信各有 handler</text>
+  <text x="820" y="660" class="box-text">_handle_shutdown_request L395-L453：先记账再回信，成功才 stop</text>
+  <text x="820" y="680" class="box-text">_handle_plan_response L455-L508：approve 必须与请求表状态一致</text>
+
+  <rect x="800" y="710" width="450" height="196" rx="10" class="team"/>
+  <text x="820" y="736" class="box-title">_run_teammate team L561-L654 · 常驻五态</text>
+  <rect x="814" y="752" width="96" height="32" rx="8" class="decision"/>
+  <text x="862" y="773" text-anchor="middle" class="box-text">working</text>
+  <rect x="926" y="752" width="76" height="32" rx="8" class="decision"/>
+  <text x="964" y="773" text-anchor="middle" class="box-text">idle</text>
+  <rect x="1018" y="752" width="96" height="32" rx="8" class="decision"/>
+  <text x="1066" y="773" text-anchor="middle" class="box-text">stopping</text>
+  <rect x="1130" y="752" width="76" height="32" rx="8" class="decision"/>
+  <text x="1168" y="773" text-anchor="middle" class="box-text">done</text>
+  <rect x="1130" y="806" width="76" height="30" rx="8" class="decision"/>
+  <text x="1168" y="826" text-anchor="middle" class="box-text">failed</text>
+  <path d="M910 768 L922 768" class="transition"/>
+  <path d="M1002 768 L1014 768" class="transition"/>
+  <path d="M1114 768 L1126 768" class="transition"/>
+  <path d="M862 784 L862 821 L1126 821" class="transition"/>
+  <text x="880" y="816" class="edge-label">异常 → error 消息</text>
+  <text x="820" y="856" class="box-text">交完总结转 idle (L606)：max_rounds 只约束一个工作周期</text>
+  <text x="820" y="876" class="box-text">while not bus.peek(name): _wait_for_mail (L638-L640)，零模型调用</text>
+  <text x="820" y="896" class="box-text">关机获批 → stopping → done；idle 仍算在岗 (L396 / L769)</text>
+
+  <rect x="800" y="926" width="450" height="110" rx="10" class="team"/>
+  <text x="820" y="952" class="box-title">MessageBus + metadata · 协议字段的载体</text>
+  <text x="820" y="976" class="box-text">TeamMessage.metadata team L143-L144：request_id / approve 不进正文</text>
+  <text x="820" y="996" class="box-text">from_dict 校验键为 str、可 JSON、与正文共用上限 (L190-L206)</text>
+  <text x="820" y="1016" class="box-text">_send_bus L401-L424：落盘后置位收件人 Event，Lead 除外</text>
+
+  <rect x="800" y="1056" width="450" height="88" rx="10" class="stage"/>
+  <text x="820" y="1082" class="box-title">tool_use.py · 四张表定能力，闭包定身份</text>
+  <text x="820" y="1106" class="box-text">PROTOCOL_TOOLS 由 L20 正向导入 → L168：父 23 子 6 队友 5</text>
+  <text x="820" y="1126" class="box-text">submit_plan 的 sender 由闭包固定 (team L514-L516)：不能替人递计划</text>
+
+  <rect x="800" y="1164" width="450" height="88" rx="10" class="stage"/>
+  <text x="820" y="1190" class="box-title">permission.py · 非主线程不得交互授权</text>
+  <text x="820" y="1214" class="box-text">check L85-L86：需要 reason 且非主线程 → 直接判为拒绝</text>
+  <text x="820" y="1234" class="box-text">审批只通信不设门禁，真正的强制仍落在这里与工具表</text>
+
+  <rect x="800" y="1272" width="450" height="88" rx="10" class="cron"/>
+  <text x="820" y="1298" class="box-title">cron_scheduler.py · 定时调度（s14）</text>
+  <text x="820" y="1322" class="box-text">定时 turn 跑同一个 agent_loop，也会读走 Lead 邮箱并路由协议</text>
+  <text x="820" y="1342" class="box-text">两条调度线程与队友线程互不知道，只共享请求表的锁</text>
+
+  <rect x="800" y="1380" width="450" height="88" rx="10" class="background"/>
+  <text x="820" y="1406" class="box-title">background_tasks.py / subagent.py（s13 / s07）</text>
+  <text x="820" y="1430" class="box-text">后台任务单向回报；SubAgent 同步阻塞一次返回</text>
+  <text x="820" y="1450" class="box-text">只有队友能双向握手：请求-响应需要一个常驻的对端</text>
+
+  <rect x="800" y="1488" width="450" height="88" rx="10" class="prompt"/>
+  <text x="820" y="1514" class="box-title">system_prompt.py · Prompt 组装（s10）</text>
+  <text x="820" y="1538" class="box-text">tools section 直接读注册表：父 23 子 6 自动同步</text>
+  <text x="820" y="1558" class="box-text">guidance 明说“不强制工具门禁” (L22-L23)，避免模型误以为被锁</text>
+
+  <rect x="800" y="1596" width="450" height="68" rx="10" class="compact"/>
+  <text x="820" y="1622" class="box-title">context_compact.py · Compact（s08）</text>
+  <text x="820" y="1646" class="box-text">协议事件也是普通 user 消息，可能被摘要吞掉；请求表不受影响</text>
+
+  <rect x="800" y="1684" width="450" height="68" rx="10" class="memory"/>
+  <text x="820" y="1710" class="box-title">memory.py · Memory（s09）</text>
+  <text x="820" y="1734" class="box-text">注入同时写提取快照 (L340-L341)：审批结论可进长期记忆</text>
+
+  <path d="M710 222 L796 200" class="link"/>
+  <path d="M710 390 L796 600" class="link"/>
+  <path d="M710 542 L796 976" class="link"/>
+  <path d="M710 822 L796 440" class="link"/>
+  <path d="M710 882 L796 790" class="link"/>
+  <path d="M710 1036 L796 640" class="link"/>
+  <path d="M710 262 L796 1106" class="link"/>
+  <path d="M710 1262 L796 1214" class="link"/>
+  <path d="M710 344 L796 1322" class="link"/>
+  <path d="M710 796 L796 1430" class="link"/>
+  <path d="M710 176 L796 1538" class="link"/>
+  <path d="M710 588 L796 1646" class="link"/>
+  <path d="M710 458 L796 1734" class="link"/>
+
+  <text x="32" y="1790" class="subtitle">审批只是通信，不是工具门禁：Lead 驳回后队友仍有能力动手，协议层只保证它一定看到结论；真正的强制来自工具表与 Permission。</text>
+</svg>

@@ -140,6 +140,7 @@ class TeamMessage:
     # type 区分普通 message、队友结束的 result 和异常终止的 error。
     type: str
     ts: float
+    # 协议字段全放 metadata：request_id / approve 不污染给人看的 content。
     metadata: dict[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
@@ -162,6 +163,7 @@ class TeamMessage:
             raise ValueError("mailbox message must be an object")
         required = {"from", "to", "content", "type", "ts"}
         allowed = required | {"metadata"}
+        # metadata 可选：s15 写下的旧邮箱仍能读，但未知字段依旧拒绝。
         if not required.issubset(payload) or set(payload) - allowed:
             raise ValueError("mailbox message fields do not match the schema")
         from_agent = payload["from"]
@@ -186,6 +188,7 @@ class TeamMessage:
         if isinstance(timestamp, bool) or not isinstance(timestamp, (int, float)):
             raise ValueError("invalid mailbox timestamp")
         if not isinstance(metadata, dict) or not all(
+            # 非字符串键在 JSON 往返后会静默变成字符串，先直接拒接。
             isinstance(key, str) for key in metadata
         ):
             raise ValueError(
@@ -199,6 +202,7 @@ class TeamMessage:
                 "mailbox metadata must be JSON serializable"
             ) from error
         if len(metadata_json) > MAX_MESSAGE_CHARS:
+            # metadata 与正文共用同一上限：协议字段不能成为绕过限额的后门。
             raise ValueError("mailbox metadata is too large")
         metadata_copy = json.loads(metadata_json)
         return cls(
@@ -256,6 +260,7 @@ class MessageBus:
                 "content": content,
                 "type": msg_type,
                 "ts": self.clock(),
+                # 普通消息与协议消息共用一种落盘格式，缺省就是空字典。
                 "metadata": (
                     {} if metadata is None else metadata
                 ),
@@ -345,13 +350,16 @@ class AgentTeamManager:
         }
         self.bus = bus or MessageBus(mailbox_dir)
         self.max_rounds = max_rounds
+        # idle 队友的轮询间隔；下限 0.01 避免传 0 变成忙等。
         self.idle_poll_interval = max(0.01, idle_poll_interval)
         # 队友线程与主线程都会读写 _records，并且 spawn 内部还嵌套调 _active_name。
         self._lock = threading.RLock()
         # 主线程只看 record 快照，队友的 messages 历史始终留在各自线程栈上。
         self._records: dict[str, TeammateRecord] = {}
         self._threads: dict[str, threading.Thread] = {}
+        # 每名队友一个 Event：发信方置位，idle 线程立即醒来而不必等满轮询。
         self._wake_events: dict[str, threading.Event] = {}
+        # 协议层只拿到两个回调（发信、查在岗），因此不知道邮箱与线程的存在。
         self.protocols = (
             protocols
             or TeamProtocolManager(self._send_bus, self._active_name)
@@ -376,6 +384,7 @@ class AgentTeamManager:
     def _active_name(self, requested: str) -> str | None:
         """不区分大小写匹配在岗队友，并返回登记在册的原名。"""
 
+        # 名字可能直接来自模型参数，非字符串时当作不在岗。
         if not isinstance(requested, str):
             return None
         with self._lock:
@@ -383,6 +392,7 @@ class AgentTeamManager:
                 if (
                     # 模型常把名字大小写写错；casefold 比较后统一回落到真实邮箱名。
                     name.casefold() == requested.casefold()
+                    # idle 队友仍然在岗：能收信、能发信、也能被关机。
                     and record.status in {"working", "idle", "stopping"}
                 ):
                     return name
@@ -406,6 +416,7 @@ class AgentTeamManager:
             metadata,
         )
         if to_agent.casefold() != "lead":
+            # Lead 没有待命线程，它的信由父循环在下一个收信点自取。
             with self._lock:
                 wake_event = self._wake_events.get(to_agent)
             if wake_event is not None:
@@ -418,8 +429,10 @@ class AgentTeamManager:
         with self._lock:
             wake_event = self._wake_events.get(name)
         if wake_event is None:
+            # 队友已被移除登记时退回纯睡眠，不抛异常打断收尾。
             time.sleep(self.idle_poll_interval)
             return
+        # 超时后仍会回到 peek 复查：即使错过一次置位也不会永久睡死。
         wake_event.wait(self.idle_poll_interval)
         wake_event.clear()
 
@@ -437,6 +450,7 @@ class AgentTeamManager:
                 return f"Error: teammate {name!r} is already active"
             record = TeammateRecord(name=name, role=role, status="working")
             self._records[name] = record
+            # 先建好唤醒事件再起线程：队友第一次进 idle 时它已经存在。
             self._wake_events[name] = threading.Event()
             thread = threading.Thread(
                 target=self._run_teammate,
@@ -497,6 +511,7 @@ class AgentTeamManager:
             "send_message": (
                 lambda to, content: self.send_from(sender, to, content)
             ),
+            # 计划的提交者同样由闭包钉住，队友无法替别人递计划。
             "submit_plan": (
                 lambda plan: self.protocols.submit_plan(sender, plan)
             ),
@@ -529,13 +544,17 @@ class AgentTeamManager:
         for message in inbox:
             dispatch = self.protocols.dispatch_teammate_message(name, message)
             if dispatch.event is not None:
+                # 审批结论与被忽略的协议都要写进历史，模型才知道发生了什么。
                 messages.append(dispatch.event)
             if dispatch.stop:
+                # 先落 stopping：此刻队友仍在岗，收尾期间的发信不会被拒。
                 self._set_record(name, "stopping")
                 return True
             if not dispatch.handled:
+                # 协议信已被消费，只有普通消息才需要作为 inbox 事件注入。
                 ordinary.append(message)
         if ordinary:
+            # 一批消息合成一条 user 事件，避免一次唤醒插入多段历史。
             messages.append(self.inbox_event(ordinary))
         return False
 
@@ -550,13 +569,16 @@ class AgentTeamManager:
             {"role": "user", "content": prompt},
         ]
         handlers = self._teammate_handlers(name)
+        # summary 跨周期保留：再次被唤醒时仍能报告上一轮的结论。
         summary = ""
         try:
             shutdown_requested = False
+            # 外层循环让队友常驻：只有关机请求获批才会跳出。
             while not shutdown_requested:
                 if self._process_teammate_inbox(name, messages):
                     break
                 self._set_record(name, "working", summary)
+                # 标记这一周期是否以正常总结收尾，用来区分超轮次。
                 completed_cycle = False
 
                 # 上限只约束一次活跃工作周期；进入 idle 后可被新消息再次唤醒。
@@ -580,6 +602,7 @@ class AgentTeamManager:
                             or "Teammate completed without a text summary."
                         )
                         self._send_bus(name, "lead", summary, "result")
+                        # s16 交完总结不再终止，而是转 idle 等下一次任务。
                         self._set_record(name, "idle", summary)
                         completed_cycle = True
                         print(f"[team] {name} idle")
@@ -609,12 +632,14 @@ class AgentTeamManager:
                         "model rounds in one work cycle"
                     )
                     self._send_bus(name, "lead", summary, "error")
+                    # 超轮次只结束这一周期而不判死：Lead 仍能改派任务或请求关机。
                     self._set_record(name, "idle", summary)
 
                 # 不调用模型地等待，收到普通消息、审批响应或关机请求才继续。
                 while not self.bus.peek(name):
                     self._wait_for_mail(name)
 
+            # 只有走完关机握手才落 done，与异常路径的 failed 区分开。
             self._set_record(name, "done", summary)
             print(f"[team] {name} stopped")
         except Exception as error:
@@ -680,6 +705,7 @@ class AgentTeamManager:
         messages = self.bus.read_inbox("lead")
         for message in messages:
             matched, reason = self.protocols.route_lead_message(message)
+            # 只有响应类消息值得审计：没配上就是串单或重放，必须留一行可查。
             if message.type.endswith("_response") and not matched:
                 print(
                     f"[protocol] ignored {message.type}: {reason}"
@@ -708,6 +734,7 @@ class AgentTeamManager:
             "spawn_teammate": self.spawn_teammate,
             "send_message": self.run_send_message,
             "check_inbox": self.run_check_inbox,
+            # 协议三件工具由协议层给出：agent_loop 不必知道它们的存在。
             **self.protocols.handlers(),
         }
 
@@ -738,6 +765,7 @@ class AgentTeamManager:
 
         with self._lock:
             return sum(
+                # idle 队友也算在岗：主循环不能因为它暂时不动就当团队已散。
                 record.status in {"working", "idle", "stopping"}
                 for record in self._records.values()
             )
