@@ -30,6 +30,7 @@ def main() -> None:
         {"role": "system", "content": harness.system_prompt}
     ]
 
+    # 定时 turn 没有对应的提示符，因此给它一个带标记的回调输出。
     def print_scheduled_answer(answer: str) -> None:
         print(f"\n\033[35m[scheduled answer]\033[0m\n{answer}\n")
 
@@ -42,6 +43,8 @@ def main() -> None:
     )
     print("输入任务，回车发送；输入 q、exit 或空行退出。\n")
 
+    # 轮询线程与 Queue Processor 都共用这一份 messages，因此一开始就传入它；
+    # finally 里停掉两个线程，退出时不留下仍在轮询的后台线程。
     harness.start_cron_runtime(messages, print_scheduled_answer)
     try:
         while True:
@@ -54,6 +57,7 @@ def main() -> None:
                 break
             harness.hooks.trigger("UserPromptSubmit", query)
             messages.append({"role": "user", "content": query})
+            # run_turn 而不是 agent_loop：前台输入要与定时投递串行。
             answer = harness.run_turn(messages, active_request=query)
             if answer:
                 print(answer)

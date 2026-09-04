@@ -1,0 +1,233 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1670" viewBox="0 0 1280 1670">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#667085"/>
+    </marker>
+    <marker id="arrow-light" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#98a2b3"/>
+    </marker>
+    <marker id="arrow-cron" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#6172f3"/>
+    </marker>
+    <style>
+      .title { font: 700 20px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #101828; }
+      .subtitle { font: 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #667085; }
+      .legend { font: 12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #475467; }
+      .box-title { font: 700 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #101828; }
+      .box-text { font: 12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #475467; }
+      .edge-label { font: 11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #667085; }
+      .edge { stroke: #667085; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+      .edge-plain { stroke: #667085; stroke-width: 1.5; fill: none; }
+      .link { stroke: #98a2b3; stroke-width: 1.1; fill: none; stroke-dasharray: 4 4; marker-end: url(#arrow-light); }
+      .transition { stroke: #6172f3; stroke-width: 1.4; fill: none; marker-end: url(#arrow-cron); }
+      .stage { fill: #f9fafb; stroke: #98a2b3; }
+      .decision { fill: #ffffff; stroke: #667085; }
+      .cron { fill: #eef4ff; stroke: #6172f3; }
+      .background { fill: #f0fdf9; stroke: #0e9384; }
+      .task { fill: #f9f5ff; stroke: #7f56d9; }
+      .recovery { fill: #fef3f2; stroke: #f97066; }
+      .prompt { fill: #ecfdf3; stroke: #32d583; }
+      .memory { fill: #fff6ed; stroke: #f79009; }
+      .compact { fill: #eff8ff; stroke: #53b1fd; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="1670" fill="#ffffff"/>
+  <text x="32" y="38" class="title">s14 一个 user turn 的调用图 · 本地 Cron 调度与到期投递</text>
+  <text x="32" y="60" class="subtitle">左列是父 Agent 的七个阶段，蓝底为 s14 新增的调度路径；右列是被调用的子系统；未标模块名的行号属于 agent_loop.py。</text>
+
+  <rect x="32" y="76" width="14" height="14" rx="3" class="cron"/>
+  <text x="52" y="88" class="legend">Cron Scheduler（s14 新增）</text>
+  <rect x="212" y="76" width="14" height="14" rx="3" class="background"/>
+  <text x="232" y="88" class="legend">Background（s13）</text>
+  <rect x="357" y="76" width="14" height="14" rx="3" class="task"/>
+  <text x="377" y="88" class="legend">Task（s12）</text>
+  <rect x="467" y="76" width="14" height="14" rx="3" class="recovery"/>
+  <text x="487" y="88" class="legend">恢复分支（s11）</text>
+  <rect x="592" y="76" width="14" height="14" rx="3" class="prompt"/>
+  <text x="612" y="88" class="legend">Prompt（s10）</text>
+  <rect x="727" y="76" width="14" height="14" rx="3" class="memory"/>
+  <text x="747" y="88" class="legend">Memory（s09）</text>
+  <rect x="862" y="76" width="14" height="14" rx="3" class="compact"/>
+  <text x="882" y="88" class="legend">Compact（s08）</text>
+  <rect x="1000" y="76" width="14" height="14" rx="3" class="stage"/>
+  <text x="1020" y="88" class="legend">循环阶段 / 工具与 Hook</text>
+
+  <rect x="90" y="126" width="620" height="134" rx="10" class="stage"/>
+  <text x="110" y="152" class="box-title">⓪ 装配 · code.py → AgentHarness.__init__</text>
+  <text x="110" y="176" class="box-text">SkillLoader · TodoManager · TaskManager · BackgroundTaskManager (L77-L83)</text>
+  <text x="110" y="196" class="box-text">install_default_hooks → ToolExecutor · memory.configure · 父子 assembler (L92-L113)</text>
+  <rect x="104" y="204" width="592" height="46" rx="6" class="cron"/>
+  <text x="110" y="222" class="box-text">assert_inside_workdir(.scheduled_tasks.json) → CronScheduler(storage_path) (L85-L89)</text>
+  <text x="110" y="242" class="box-text">cron.handlers() → _parent_handlers (L132) · _agent_lock / _runtime_stop (L136-L140)</text>
+
+  <rect x="90" y="284" width="620" height="134" rx="10" class="stage"/>
+  <text x="110" y="310" class="box-title">⓪′ 运行时启动 · start_cron_runtime (L174-L192)，幂等</text>
+  <rect x="104" y="320" width="592" height="68" rx="6" class="cron"/>
+  <text x="110" y="338" class="box-text">cron.start() (L184)：先 load_durable_jobs (cron L298)，再起 cron-scheduler 线程</text>
+  <text x="110" y="358" class="box-text">cron-scheduler：_stop.wait(poll_interval) → poll_due_jobs (cron L569-L590)</text>
+  <text x="110" y="378" class="box-text">cron-queue-processor：has_queue + _agent_lock.acquire(blocking=False) (L152-L172)</text>
+  <text x="110" y="406" class="box-text">run_turn (L142-L150)：前台输入持同一把锁跑 agent_loop，定时投递只能排队等待</text>
+
+  <rect x="90" y="442" width="620" height="180" rx="10" class="stage"/>
+  <text x="110" y="468" class="box-title">① turn 开始 · 每 turn 一次</text>
+  <rect x="104" y="478" width="592" height="88" rx="6" class="cron"/>
+  <text x="110" y="496" class="box-text">cron.consume_queue() (L405)：锁内原子取走整个队列 (cron L462)</text>
+  <text x="110" y="516" class="box-text">active_request：显式用户请求 &gt; 调度 prompt &gt; latest_user_request (L406-L411)</text>
+  <text x="110" y="536" class="box-text">_inject_scheduled_jobs (L416-L418)：每个任务一条 [Scheduled] 的 role=user</text>
+  <text x="110" y="556" class="box-text">waiting_for_cron_ack = list(...) (L419)：记住这批任务，等首次成功响应</text>
+  <text x="110" y="584" class="box-text">deepcopy 快照 (L415) → refresh_system_prompts (L425) → 召回并注入 memories (L426)</text>
+  <text x="110" y="604" class="box-text">RecoveryState(settings.model) (L436)：恢复额度归零，不跨 turn 累积</text>
+
+  <rect x="90" y="646" width="620" height="210" rx="10" class="stage"/>
+  <text x="110" y="672" class="box-title">② 请求与瞬态恢复 · 每轮一次</text>
+  <text x="110" y="696" class="box-text">收集点② 后台通知 (L442) · refresh_system_prompts + compactor.prepare (L455-L456)</text>
+  <rect x="104" y="706" width="592" height="24" rx="6" class="decision"/>
+  <text x="110" y="723" class="box-text">with_retry (L461-L475)：429 / 529 退避重试，消息历史保持不变</text>
+  <rect x="104" y="736" width="592" height="44" rx="6" class="recovery"/>
+  <text x="110" y="753" class="box-text">prompt too long → reactive_compact 后 continue (L479-L491)：任务仍未确认</text>
+  <text x="110" y="773" class="box-text">不可恢复 → _append_failure_result (L497-L499) 收口为最终 assistant 文本</text>
+  <rect x="104" y="786" width="592" height="64" rx="6" class="cron"/>
+  <text x="110" y="804" class="box-text">成功 → cron.acknowledge(waiting) (L501-L508 / cron L470)：唯一的提交点</text>
+  <text x="110" y="824" class="box-text">失败 → cron.restore (L492) + _remove_scheduled_messages (L494-L496)</text>
+  <text x="110" y="844" class="box-text">acknowledge 落盘失败 → 撤销删除与清 pending 并重新排队 (cron L491-L499)</text>
+
+  <rect x="90" y="880" width="620" height="132" rx="10" class="stage"/>
+  <text x="110" y="906" class="box-title">③ 响应分类 · 完整性先于写入</text>
+  <rect x="104" y="916" width="592" height="68" rx="6" class="recovery"/>
+  <text x="110" y="933" class="box-text">is_output_truncated → 首次升级 max_tokens，再截断才存片段并续写 (L515-L559)</text>
+  <text x="110" y="953" class="box-text">3 条 continuation 用尽 → 返回最后片段；截断分支全部 continue</text>
+  <text x="110" y="973" class="box-text">确认已在 ② 完成，后续截断与续写都不会导致任务重投</text>
+  <text x="110" y="1002" class="box-text">完整 → assistant_payload 双写主历史与提取快照 (L562-L564)</text>
+
+  <rect x="290" y="1036" width="220" height="38" rx="10" class="decision"/>
+  <text x="400" y="1060" text-anchor="middle" class="box-text">assistant.tool_calls ?</text>
+
+  <rect x="90" y="1098" width="620" height="160" rx="10" class="stage"/>
+  <text x="110" y="1124" class="box-title">④ 工具批次 (L591-L596 / L342)</text>
+  <text x="110" y="1148" class="box-text">compact → CompactToolController.request (L360)：唯一的控制工具例外</text>
+  <text x="110" y="1168" class="box-text">其他工具 → _dispatch_parent_tool (L367 / L260)：Hook → Permission → handler</text>
+  <rect x="104" y="1176" width="592" height="64" rx="6" class="cron"/>
+  <text x="110" y="1194" class="box-text">run_schedule_cron (cron L522) → validate_cron → schedule_job → durable 落盘</text>
+  <text x="110" y="1214" class="box-text">run_list_crons (cron L536) 标注 [recurring, session]；run_cancel_cron (cron L555)</text>
+  <text x="110" y="1234" class="box-text">参数非法只回 Error: … observation；PreToolUse 可直接拦下 schedule_cron</text>
+
+  <rect x="90" y="1282" width="620" height="118" rx="10" class="stage"/>
+  <text x="110" y="1308" class="box-title">⑤ turn 结束 · 调度不改变出口</text>
+  <text x="110" y="1332" class="box-text">收集点③ (L570-L573) → Stop Hook (L577) → extract_memories (L585) → return (L587)</text>
+  <rect x="104" y="1340" width="592" height="46" rx="6" class="cron"/>
+  <text x="110" y="1358" class="box-text">定时 turn 没有提示符：答案交给 on_answer 回调 (L166-L170 / code.py L34)</text>
+  <text x="110" y="1378" class="box-text">回调抛异常只打印一行告警，不影响下一次投递</text>
+
+  <line x1="400" y1="260" x2="400" y2="282" class="edge"/>
+  <line x1="400" y1="418" x2="400" y2="440" class="edge"/>
+  <line x1="400" y1="622" x2="400" y2="644" class="edge"/>
+  <line x1="400" y1="856" x2="400" y2="878" class="edge"/>
+  <line x1="400" y1="1012" x2="400" y2="1034" class="edge"/>
+  <line x1="400" y1="1074" x2="400" y2="1096" class="edge"/>
+  <text x="408" y="1092" class="edge-label">有</text>
+
+  <path d="M510 1055 L736 1055 L736 1330 L713 1330" class="edge"/>
+  <text x="516" y="1048" class="edge-label">无 tool_calls</text>
+
+  <path d="M90 950 L62 950" class="edge-plain"/>
+  <path d="M90 1168 L62 1168 L62 670 L86 670" class="edge"/>
+  <text x="6" y="930" class="edge-label">回到 ②</text>
+
+  <rect x="90" y="1424" width="620" height="150" rx="10" class="stage"/>
+  <text x="110" y="1450" class="box-title">三条时间线 · 一把 _agent_lock</text>
+  <text x="110" y="1474" class="box-text">主线程　input() (code.py L52) → run_turn 持锁跑 agent_loop → 可交互授权</text>
+  <text x="110" y="1494" class="box-text">cron-scheduler　只改 jobs / queue（RLock, cron L261），从不触碰 messages</text>
+  <text x="110" y="1514" class="box-text">cron-queue-processor　抢锁成功才消费队列，失败则下一轮再试 (L159-L161)</text>
+  <text x="110" y="1546" class="box-text">代价是定时任务延迟上限等于一次前台 turn，收益是 Compact / Memory 无并发</text>
+
+  <rect x="800" y="126" width="450" height="206" rx="10" class="cron"/>
+  <text x="820" y="152" class="box-title">cron_scheduler.py · 本地调度设施（s14 新增）</text>
+  <text x="820" y="176" class="box-text">CRON_TOOLS L48-L71：三个 schema，只进 PARENT_TOOLS</text>
+  <text x="820" y="196" class="box-text">CronJob L74-L123：九字段 + from_dict 逐字段校验</text>
+  <text x="820" y="216" class="box-text">CronScheduler L240-L265：jobs / queue / RLock / 可注入时钟</text>
+  <text x="820" y="236" class="box-text">schedule_job L357 · cancel_job L395 · has_queue L516</text>
+  <text x="820" y="256" class="box-text">poll_due_jobs L440 · _enqueue_due_job L417（先落盘再入队）</text>
+  <text x="820" y="276" class="box-text">consume_queue L462 · acknowledge L470 · restore L501</text>
+  <text x="820" y="296" class="box-text">start L575 / stop L592：只依赖标准库，位于依赖层 L0</text>
+  <text x="820" y="320" class="box-text">对外只暴露“队列 + 确认 / 回滚”，投递时机交给父循环</text>
+
+  <rect x="800" y="354" width="450" height="150" rx="10" class="cron"/>
+  <text x="820" y="380" class="box-title">cron 表达式 · 五段本地实现</text>
+  <text x="820" y="404" class="box-text">validate_cron L215-L237：字段数、范围、区间方向、步进 &gt; 0</text>
+  <text x="820" y="424" class="box-text">_cron_field_matches L126-L143：* / */n / a-b / 列表 / 精确值</text>
+  <text x="820" y="444" class="box-text">步进统一以 0 为基准取模：*/15 命中 0、15、30、45</text>
+  <text x="820" y="464" class="box-text">weekday 换算 (weekday()+1) % 7，周日 = 0 (L158)</text>
+  <text x="820" y="484" class="box-text">day-of-month 与 day-of-week 都非 * → OR 语义 (L168-L176)</text>
+
+  <rect x="800" y="526" width="450" height="150" rx="10" class="cron"/>
+  <text x="820" y="552" class="box-title">持久化 · 原子写与幂等恢复</text>
+  <text x="820" y="576" class="box-text">_save_durable_jobs L267-L296：只写 durable 任务 (L272)</text>
+  <text x="820" y="596" class="box-text">tmp 名带 pid + 线程 id，0600 打开 (L275-L285)</text>
+  <text x="820" y="616" class="box-text">json.dump → flush → fsync → os.replace (L286-L293)</text>
+  <text x="820" y="636" class="box-text">load_durable_jobs L298-L341：逐条容错，坏记录跳过</text>
+  <text x="820" y="656" class="box-text">session 任务不进文件，重启即消失（对照 recurring）</text>
+
+  <rect x="800" y="698" width="450" height="170" rx="10" class="cron"/>
+  <text x="820" y="724" class="box-title">投递状态机 · 至少一次投递，恰好一次确认</text>
+  <rect x="814" y="744" width="118" height="40" rx="8" class="decision"/>
+  <text x="873" y="769" text-anchor="middle" class="box-text">pending</text>
+  <rect x="984" y="738" width="126" height="32" rx="8" class="decision"/>
+  <text x="1047" y="759" text-anchor="middle" class="box-text">acknowledged</text>
+  <rect x="984" y="782" width="126" height="32" rx="8" class="decision"/>
+  <text x="1047" y="803" text-anchor="middle" class="box-text">restored</text>
+  <path d="M932 758 L960 758 L960 754 L980 754" class="transition"/>
+  <path d="M932 774 L960 774 L960 798 L980 798" class="transition"/>
+  <text x="1120" y="759" class="edge-label">首次响应成功</text>
+  <text x="1120" y="803" class="edge-label">请求不可恢复</text>
+  <text x="820" y="836" class="box-text">pending_delivery 先落盘再入队：崩溃后由 load_durable_jobs</text>
+  <text x="820" y="856" class="box-text">重放 (L334-L337)；一次性任务在 acknowledge 时才删除 (L485-L487)</text>
+
+  <rect x="800" y="890" width="450" height="94" rx="10" class="stage"/>
+  <text x="820" y="916" class="box-title">tool_use.py · 两张表决定能力边界</text>
+  <text x="820" y="940" class="box-text">CRON_TOOLS 由 L14 反向导入 → PARENT_TOOLS L160：父 17 子 6</text>
+  <text x="820" y="960" class="box-text">execute L239：三个 cron 工具与其他工具走同一条 Hook 管线</text>
+
+  <rect x="800" y="1006" width="450" height="88" rx="10" class="stage"/>
+  <text x="820" y="1032" class="box-title">permission.py · 自动 turn 不得升级权限</text>
+  <text x="820" y="1056" class="box-text">check L84-L86：非主线程且需要 reason → 直接判为拒绝</text>
+  <text x="820" y="1076" class="box-text">避免后台线程抢终端，或无人值守时被一个 y 放行</text>
+
+  <rect x="800" y="1116" width="450" height="88" rx="10" class="prompt"/>
+  <text x="820" y="1142" class="box-title">system_prompt.py · Prompt 组装（s10）</text>
+  <text x="820" y="1166" class="box-text">tools section 直接读注册表：父 17 子 6 自动同步</text>
+  <text x="820" y="1186" class="box-text">只有父 guidance 提三个 cron 工具，子 guidance 不提</text>
+
+  <rect x="800" y="1226" width="450" height="88" rx="10" class="recovery"/>
+  <text x="820" y="1252" class="box-title">error_recovery.py · 恢复策略（s11）</text>
+  <text x="820" y="1276" class="box-text">with_retry L126：重试期间任务一直保持 pending</text>
+  <text x="820" y="1296" class="box-text">磁盘写失败不进恢复：重发请求解决不了本地状态</text>
+
+  <rect x="800" y="1336" width="450" height="88" rx="10" class="background"/>
+  <text x="820" y="1362" class="box-title">background_tasks.py / task_system.py（s13 / s12）</text>
+  <text x="820" y="1386" class="box-text">后台任务只活在本进程，任务板落在 .tasks/*.json</text>
+  <text x="820" y="1406" class="box-text">定时任务是第三种：磁盘定义 + 自动触发一个新 turn</text>
+
+  <rect x="800" y="1446" width="450" height="68" rx="10" class="compact"/>
+  <text x="820" y="1472" class="box-title">context_compact.py · Compact（s08）</text>
+  <text x="820" y="1496" class="box-text">[Scheduled] 是普通 user 消息，可能被摘要吞掉且无法重取</text>
+
+  <rect x="800" y="1536" width="450" height="68" rx="10" class="memory"/>
+  <text x="820" y="1562" class="box-title">memory.py · Memory（s09）</text>
+  <text x="820" y="1586" class="box-text">注入晚于快照建立 (L415)，到期事件同时进提取快照</text>
+
+  <path d="M710 226 L796 200" class="link"/>
+  <path d="M710 358 L796 400" class="link"/>
+  <path d="M710 1194 L796 600" class="link"/>
+  <path d="M710 500 L796 760" class="link"/>
+  <path d="M710 804 L796 790" class="link"/>
+  <path d="M710 1148 L796 930" class="link"/>
+  <path d="M710 1514 L796 1060" class="link"/>
+  <path d="M710 196 L796 1150" class="link"/>
+  <path d="M710 763 L796 1270" class="link"/>
+  <path d="M710 584 L796 1370" class="link"/>
+  <path d="M710 1332 L796 1490" class="link"/>
+  <path d="M710 1358 L796 1580" class="link"/>
+
+  <text x="32" y="1640" class="subtitle">到期任务不是工具结果，而是一条独立的 [Scheduled] user 消息；模型首次成功响应才算投递完成，失败则回滚并重新排队。</text>
+</svg>
