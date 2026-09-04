@@ -129,6 +129,8 @@ class AgentHarness:
         mailbox_dir = settings.assert_inside_workdir(
             settings.workdir / ".mailboxes", "mailbox directory"
         )
+        # 队友与 SubAgent 共用同一份基础 handler，但 AgentTeamManager 只会挑走
+        # bash / read_file / write_file；邮箱目录同样先过工作区边界校验。
         self.team = AgentTeamManager(
             client=client,
             settings=settings,
@@ -456,7 +458,7 @@ class AgentHarness:
         )
         waiting_for_cron_ack = list(scheduled_jobs)
         # 上一个 user turn 结束后才完成的任务在这里进入历史；active_request
-        # 已经固定，因此通知不会被误当成当前用户目标。
+        # 已经固定，因此通知不会被误当成当前用户目标。队友邮件同理。
         self._inject_background_notifications(messages, extraction_messages)
         self._inject_team_messages(messages, extraction_messages)
 
@@ -478,6 +480,7 @@ class AgentHarness:
         while True:
             # 后台 worker 只生产状态，不直接改 messages；父线程在模型边界统一消费，
             # 从而避免后台线程与 Compact、Memory 同时改写消息列表。
+            # 队友线程只往邮箱追写，也靠这一点才能安全并发。
             self._inject_background_notifications(messages, extraction_messages)
             self._inject_team_messages(messages, extraction_messages)
 
@@ -607,6 +610,7 @@ class AgentHarness:
             if not assistant.tool_calls:
                 # 模型推理期间任务可能刚好完成。先注入通知并继续一轮，
                 # 避免在可见结果已经到达时仍返回“后台运行中”的最终答案。
+                # 队友回报也要同样处理：两者任一非空就重新进入模型循环。
                 background_count = self._inject_background_notifications(
                     messages, extraction_messages
                 )

@@ -150,6 +150,8 @@ COMPACT_TOOL = function_tool(
 # 整个 messages，不满足 handler 返回字符串的契约，由父循环内联拦截；
 # SUB_TOOLS 特意排除了 todo_write、task、Task System 和 compact；即使模型硬造调用，
 # handler 表也只会返回 unknown tool。
+# Cron 与 Team 三件套同样只进 PARENT_TOOLS；队友又有自己的 TEAMMATE_TOOLS，
+# 因此“能不能再递归组队”不靠 Prompt 叮嘱，而是三张表彼此隔开。
 # 所以能力隔离由注册表和 handler 表共同保证，而不只依赖 SubAgent Prompt。
 PARENT_TOOLS = [
     BACKGROUND_BASH_TOOL,

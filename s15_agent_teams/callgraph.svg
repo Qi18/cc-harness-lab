@@ -1,0 +1,214 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1670" viewBox="0 0 1280 1670">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#667085"/>
+    </marker>
+    <marker id="arrow-light" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#98a2b3"/>
+    </marker>
+    <marker id="arrow-team" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#06aed4"/>
+    </marker>
+    <style>
+      .title { font: 700 20px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #101828; }
+      .subtitle { font: 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #667085; }
+      .legend { font: 12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #475467; }
+      .box-title { font: 700 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #101828; }
+      .box-text { font: 12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #475467; }
+      .edge-label { font: 11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; fill: #667085; }
+      .edge { stroke: #667085; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+      .edge-plain { stroke: #667085; stroke-width: 1.5; fill: none; }
+      .link { stroke: #98a2b3; stroke-width: 1.1; fill: none; stroke-dasharray: 4 4; marker-end: url(#arrow-light); }
+      .transition { stroke: #06aed4; stroke-width: 1.4; fill: none; marker-end: url(#arrow-team); }
+      .stage { fill: #f9fafb; stroke: #98a2b3; }
+      .decision { fill: #ffffff; stroke: #667085; }
+      .team { fill: #ecfeff; stroke: #06aed4; }
+      .cron { fill: #eef4ff; stroke: #6172f3; }
+      .background { fill: #f0fdf9; stroke: #0e9384; }
+      .task { fill: #f9f5ff; stroke: #7f56d9; }
+      .recovery { fill: #fef3f2; stroke: #f97066; }
+      .prompt { fill: #ecfdf3; stroke: #32d583; }
+      .memory { fill: #fff6ed; stroke: #f79009; }
+      .compact { fill: #eff8ff; stroke: #53b1fd; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="1670" fill="#ffffff"/>
+  <text x="32" y="38" class="title">s15 一个 Lead turn 的调用图 · Agent Teams 与文件邮箱</text>
+  <text x="32" y="60" class="subtitle">左列是 Lead（父 Agent）的五个阶段，青底为 s15 新增的团队路径；右列是被调用的子系统；未标模块名的行号属于 agent_loop.py。</text>
+
+  <rect x="32" y="76" width="14" height="14" rx="3" class="team"/>
+  <text x="52" y="88" class="legend">Agent Teams（s15 新增）</text>
+  <rect x="208" y="76" width="14" height="14" rx="3" class="cron"/>
+  <text x="228" y="88" class="legend">Cron（s14）</text>
+  <rect x="330" y="76" width="14" height="14" rx="3" class="background"/>
+  <text x="350" y="88" class="legend">Background（s13）</text>
+  <rect x="475" y="76" width="14" height="14" rx="3" class="task"/>
+  <text x="495" y="88" class="legend">Task（s12）</text>
+  <rect x="585" y="76" width="14" height="14" rx="3" class="recovery"/>
+  <text x="605" y="88" class="legend">恢复分支（s11）</text>
+  <rect x="710" y="76" width="14" height="14" rx="3" class="prompt"/>
+  <text x="730" y="88" class="legend">Prompt（s10）</text>
+  <rect x="845" y="76" width="14" height="14" rx="3" class="memory"/>
+  <text x="865" y="88" class="legend">Memory（s09）</text>
+  <rect x="980" y="76" width="14" height="14" rx="3" class="compact"/>
+  <text x="1000" y="88" class="legend">Compact（s08）</text>
+  <rect x="1115" y="76" width="14" height="14" rx="3" class="stage"/>
+  <text x="1135" y="88" class="legend">循环阶段 / 工具</text>
+
+  <rect x="90" y="126" width="620" height="140" rx="10" class="stage"/>
+  <text x="110" y="152" class="box-title">⓪ 装配 · code.py → AgentHarness.__init__</text>
+  <text x="110" y="176" class="box-text">Skill / Todo / TaskManager / Background / CronScheduler (L78-L90)</text>
+  <text x="110" y="196" class="box-text">Hook → ToolExecutor · memory.configure · 父子 assembler (L93-L113)</text>
+  <rect x="104" y="204" width="592" height="46" rx="6" class="team"/>
+  <text x="110" y="222" class="box-text">assert_inside_workdir(.mailboxes) → AgentTeamManager (L129-L140)</text>
+  <text x="110" y="242" class="box-text">team.handlers() → _parent_handlers (L146) · 只挑 bash / read_file / write_file</text>
+
+  <rect x="90" y="284" width="620" height="158" rx="10" class="stage"/>
+  <text x="110" y="310" class="box-title">① turn 开始 · 每 turn 一次</text>
+  <text x="110" y="334" class="box-text">cron.consume_queue (L445) · active_request (L446-L451) · deepcopy 快照 (L455)</text>
+  <text x="110" y="354" class="box-text">_inject_scheduled_jobs (L456) · 收集点① 后台通知 (L462)</text>
+  <rect x="104" y="362" width="592" height="46" rx="6" class="team"/>
+  <text x="110" y="380" class="box-text">收信点① _inject_team_messages (L463 / L325)：Lead 邮箱 → &lt;team_inbox&gt;</text>
+  <text x="110" y="400" class="box-text">比 active_request 与快照都晚：不抢本轮目标，也一定进提取快照</text>
+  <text x="110" y="428" class="box-text">refresh_system_prompts (L466) → 召回并注入 memories (L467) · RecoveryState (L477)</text>
+
+  <rect x="90" y="468" width="620" height="170" rx="10" class="stage"/>
+  <text x="110" y="494" class="box-title">② 请求与瞬态恢复 · 每轮一次</text>
+  <rect x="104" y="504" width="592" height="44" rx="6" class="team"/>
+  <text x="110" y="522" class="box-text">收信点② _inject_team_messages (L485)：队友上一轮发的信在这里到账</text>
+  <text x="110" y="542" class="box-text">队友线程只往邮箱追写 (team L237-L245)，从不触碰 messages</text>
+  <text x="110" y="568" class="box-text">收集点② 后台通知 (L484) · refresh_system_prompts + compactor.prepare (L497)</text>
+  <rect x="104" y="576" width="592" height="24" rx="6" class="decision"/>
+  <text x="110" y="593" class="box-text">with_retry (L503-L517)：429 / 529 退避重试，期间队友继续自行推进</text>
+  <rect x="104" y="606" width="592" height="24" rx="6" class="recovery"/>
+  <text x="110" y="623" class="box-text">prompt too long → reactive_compact 后 continue (L521-L533)</text>
+
+  <rect x="290" y="662" width="220" height="38" rx="10" class="decision"/>
+  <text x="400" y="686" text-anchor="middle" class="box-text">assistant.tool_calls ?</text>
+
+  <rect x="90" y="724" width="620" height="150" rx="10" class="stage"/>
+  <text x="110" y="750" class="box-title">③ 工具批次 (L639-L644 / L382)</text>
+  <text x="110" y="774" class="box-text">compact → CompactToolController.request · 其他 → _dispatch_parent_tool (L274)</text>
+  <rect x="104" y="782" width="592" height="64" rx="6" class="team"/>
+  <text x="110" y="800" class="box-text">spawn_teammate (team L351)：校验 → record → Thread(cc-teammate-*, daemon)</text>
+  <text x="110" y="820" class="box-text">send_message → send_from("lead", …) (team L547 / L506)：sender 写死为 lead</text>
+  <text x="110" y="840" class="box-text">check_inbox → consume_lead_messages (team L557)：与收信点共用同一出口</text>
+
+  <rect x="90" y="916" width="620" height="140" rx="10" class="stage"/>
+  <text x="110" y="942" class="box-title">④ turn 结束 · 队友回报可以推翻最终答案</text>
+  <rect x="104" y="952" width="592" height="64" rx="6" class="team"/>
+  <text x="110" y="970" class="box-text">收集点③ 后台通知 (L614-L616) · 收信点③ (L617-L619) 返回消息条数</text>
+  <text x="110" y="990" class="box-text">if background_count or team_count → continue (L620-L621)：强制再来一轮</text>
+  <text x="110" y="1010" class="box-text">推理期间队友刚好完成时，不会返回“队友仍在工作”的答案</text>
+  <text x="110" y="1038" class="box-text">Stop Hook (L625) → extract_memories (L633，快照含邮件) → return (L635)</text>
+
+  <line x1="400" y1="266" x2="400" y2="282" class="edge"/>
+  <line x1="400" y1="442" x2="400" y2="466" class="edge"/>
+  <line x1="400" y1="638" x2="400" y2="660" class="edge"/>
+  <line x1="400" y1="700" x2="400" y2="722" class="edge"/>
+  <text x="408" y="718" class="edge-label">有</text>
+
+  <path d="M510 681 L736 681 L736 940 L713 940" class="edge"/>
+  <text x="516" y="674" class="edge-label">无 tool_calls</text>
+
+  <path d="M90 800 L62 800 L62 492 L86 492" class="edge"/>
+  <text x="6" y="780" class="edge-label">回到 ②</text>
+
+  <rect x="90" y="1098" width="620" height="170" rx="10" class="stage"/>
+  <text x="110" y="1124" class="box-title">四条时间线 · 队友不参与 _agent_lock</text>
+  <text x="110" y="1148" class="box-text">主线程　input() (code.py L52) → run_turn 持锁跑 agent_loop → 可交互授权</text>
+  <text x="110" y="1168" class="box-text">cron-scheduler / cron-queue-processor　s14 两条线仍在，后者持锁后才改 messages</text>
+  <text x="110" y="1188" class="box-text">cc-teammate-*　只写自己的邮箱与 record，可与 Lead 的模型请求真并行</text>
+  <text x="110" y="1208" class="box-text">串行边界下移到 MessageBus._lock (team L201)：追写与读后删除都在锁内</text>
+  <text x="110" y="1240" class="box-text">队友是非主线程：敏感 bash 需要交互授权时直接被拒 (permission.py L85-L86)</text>
+
+  <rect x="800" y="126" width="450" height="206" rx="10" class="team"/>
+  <text x="820" y="152" class="box-title">agent_teams.py · 团队设施（s15 新增）</text>
+  <text x="820" y="176" class="box-text">常量 L26-L33：轮次 10 / 单条 100k / 名称正则 / 保留名</text>
+  <text x="820" y="196" class="box-text">TEAM_TOOLS L77-L97：三个 schema，只进 PARENT_TOOLS</text>
+  <text x="820" y="216" class="box-text">TEAMMATE_TOOLS L102-L128：bash / read / write / send_message</text>
+  <text x="820" y="236" class="box-text">TeamMessage L132-L185：from / to / content / type / ts</text>
+  <text x="820" y="256" class="box-text">TeammateRecord L281-L287：主线程可观察的队友状态</text>
+  <text x="820" y="276" class="box-text">AgentTeamManager L290-L611：spawn / send / inbox / snapshot</text>
+  <text x="820" y="296" class="box-text">只导入 config 与 provider，位于依赖层 L1</text>
+  <text x="820" y="320" class="box-text">对外只暴露“组队 + 发信 + 收信”，注入时机交给父循环</text>
+
+  <rect x="800" y="354" width="450" height="170" rx="10" class="team"/>
+  <text x="820" y="380" class="box-title">MessageBus · 文件邮箱与消费式读取</text>
+  <text x="820" y="404" class="box-text">_path L203-L214：正则 + relative_to 双重校验</text>
+  <text x="820" y="424" class="box-text">send L216-L250：追写 JSONL → flush → fsync → chmod 0600</text>
+  <text x="820" y="444" class="box-text">read_inbox L252-L270：整份解析成功后才 unlink</text>
+  <text x="820" y="464" class="box-text">坏 JSON → 抛出并保留整个文件，宁可重试也不丢消息</text>
+  <text x="820" y="484" class="box-text">peek L272-L277：只看存在且非空，不消费</text>
+  <text x="820" y="504" class="box-text">RLock L201：多名队友并发写同一邮箱时串行</text>
+
+  <rect x="800" y="546" width="450" height="190" rx="10" class="team"/>
+  <text x="820" y="572" class="box-title">_run_teammate L432-L504 · 自带停机条件</text>
+  <rect x="814" y="592" width="118" height="40" rx="8" class="decision"/>
+  <text x="873" y="617" text-anchor="middle" class="box-text">working</text>
+  <rect x="984" y="586" width="126" height="32" rx="8" class="decision"/>
+  <text x="1047" y="607" text-anchor="middle" class="box-text">done</text>
+  <rect x="984" y="630" width="126" height="32" rx="8" class="decision"/>
+  <text x="1047" y="651" text-anchor="middle" class="box-text">failed</text>
+  <path d="M932 606 L960 606 L960 602 L980 602" class="transition"/>
+  <path d="M932 622 L960 622 L960 646 L980 646" class="transition"/>
+  <text x="1120" y="607" class="edge-label">无 tool_calls</text>
+  <text x="1120" y="651" class="edge-label">超 10 轮 / 异常</text>
+  <text x="820" y="684" class="box-text">每轮开头 read_inbox(name) → &lt;team_inbox&gt; (L450-L452)</text>
+  <text x="820" y="704" class="box-text">messages[-20:] 固定滑窗：队友没有 Compact (L457)</text>
+  <text x="820" y="724" class="box-text">工具走 Lead 同一个 ToolExecutor，[name] 前缀区分 (L475)</text>
+
+  <rect x="800" y="758" width="450" height="110" rx="10" class="stage"/>
+  <text x="820" y="784" class="box-title">tool_use.py · 三张表定能力，闭包定身份</text>
+  <text x="820" y="808" class="box-text">TEAM_TOOLS 由 L13 反向导入 → L164：父 20 子 6 队友 4</text>
+  <text x="820" y="828" class="box-text">队友 send_message 的 sender 由闭包固定 (team L410-L421)</text>
+  <text x="820" y="848" class="box-text">非在岗队友冒用身份 → not active；拒绝自寄 (team L529)</text>
+
+  <rect x="800" y="890" width="450" height="88" rx="10" class="stage"/>
+  <text x="820" y="916" class="box-title">permission.py · 非主线程不得交互授权</text>
+  <text x="820" y="940" class="box-text">check L85-L86：需要 reason 且非主线程 → 直接判为拒绝</text>
+  <text x="820" y="960" class="box-text">队友与定时 turn 共享这条边界，不会被一个 y 放行</text>
+
+  <rect x="800" y="1000" width="450" height="88" rx="10" class="cron"/>
+  <text x="820" y="1026" class="box-title">cron_scheduler.py · 定时调度（s14）</text>
+  <text x="820" y="1050" class="box-text">两条运行时线程仍在，与队友线程互不知道</text>
+  <text x="820" y="1070" class="box-text">定时 turn 跑同一个 agent_loop，同样会读走 Lead 邮箱</text>
+
+  <rect x="800" y="1110" width="450" height="88" rx="10" class="background"/>
+  <text x="820" y="1136" class="box-title">background_tasks.py / subagent.py（s13 / s07）</text>
+  <text x="820" y="1160" class="box-text">后台任务只单向回报状态，不接收指示</text>
+  <text x="820" y="1180" class="box-text">task 同步阻塞一次返回；队友异步常驻双向通信</text>
+
+  <rect x="800" y="1220" width="450" height="88" rx="10" class="prompt"/>
+  <text x="820" y="1246" class="box-title">system_prompt.py · Prompt 组装（s10）</text>
+  <text x="820" y="1270" class="box-text">tools section 直接读注册表：父 20 子 6 自动同步</text>
+  <text x="820" y="1290" class="box-text">只有父 guidance 提团队三件与“给非重叠职责”</text>
+
+  <rect x="800" y="1330" width="450" height="88" rx="10" class="recovery"/>
+  <text x="820" y="1356" class="box-title">error_recovery.py · 恢复策略（s11）</text>
+  <text x="820" y="1380" class="box-text">队友的模型错误留在自己线程，只变成一条 error 消息</text>
+  <text x="820" y="1400" class="box-text">邮箱读写失败不进恢复：重发请求解决不了本地状态</text>
+
+  <rect x="800" y="1440" width="450" height="68" rx="10" class="compact"/>
+  <text x="820" y="1466" class="box-title">context_compact.py · Compact（s08）</text>
+  <text x="820" y="1490" class="box-text">&lt;team_inbox&gt; 是普通 user 消息，可能被摘要吞掉且无法重取</text>
+
+  <rect x="800" y="1530" width="450" height="68" rx="10" class="memory"/>
+  <text x="820" y="1556" class="box-title">memory.py · Memory（s09）</text>
+  <text x="820" y="1580" class="box-text">注入同时写提取快照 (L340-L341)，队友回报可进长期记忆</text>
+
+  <path d="M710 222 L796 200" class="link"/>
+  <path d="M710 522 L796 440" class="link"/>
+  <path d="M710 800 L796 620" class="link"/>
+  <path d="M710 820 L796 820" class="link"/>
+  <path d="M710 1240 L796 940" class="link"/>
+  <path d="M710 334 L796 1050" class="link"/>
+  <path d="M710 774 L796 1160" class="link"/>
+  <path d="M710 196 L796 1260" class="link"/>
+  <path d="M710 593 L796 1380" class="link"/>
+  <path d="M710 1038 L796 1490" class="link"/>
+  <path d="M710 380 L796 1580" class="link"/>
+
+  <text x="32" y="1640" class="subtitle">队友消息不是工具结果，而是一条独立的 &lt;team_inbox&gt; user 事件；读后即删使它只被看到一次，还没看到则强制再来一轮。</text>
+</svg>
