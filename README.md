@@ -2,11 +2,13 @@
 
 从零实现一个 Claude Code 风格的 Agent Harness，用尽量少的代码理解智能体运行时的核心机制。
 
-这个仓库不是通用 Agent 框架，而是按阶段演进的学习与实验项目：每个目录聚焦一个可独立运行的能力。
+这个仓库不是通用 Agent 框架，而是按阶段演进的学习与实验项目：s01–s19 的章节保留累计可运行实现，s20 复用 s19 做集成验收，不再复制 Harness。
 
 ## 当前进度
 
-当前已完成 s01–s13，并通过 243 项自动化测试：
+当前已实现 s01–s19 的教学能力，并完成 s20 跨模块集成验收；2026-09-05 全仓 799 项自动化测试通过。MCP 仍为进程内 mock，不是可连接任意真实服务的客户端。
+
+整体运行路径见 [s20 架构与集成验收](s20_comprehensive_agent/README.md)。交互入口继续使用 `python3 s19_mcp_plugin/code.py`。
 
 | 章节 | 主题 | 关键实现 |
 | --- | --- | --- |
@@ -14,8 +16,15 @@
 | [s11](s11_error_recovery/) | Error Recovery | 输出截断续写、Prompt 溢出压缩，以及 429/529 有界退避与 fallback |
 | [s12](s12_task_system/) | Task System | 持久任务图、依赖阻塞、严格状态机和原子 JSON 落盘 |
 | [s13](s13_background_tasks/) | Background Tasks | 后台 Bash、线程安全状态、一次性完成通知和消息竞态处理 |
+| [s14](s14_cron_scheduler/) | Cron Scheduler | 到期队列、持久定义与前台 turn 串行执行 |
+| [s15](s15_agent_teams/README.md) | Agent Teams | 独立队友循环、邮箱与消息汇总 |
+| [s16](s16_team_protocols/README.md) | Team Protocols | 计划审批、关闭握手与协议状态 |
+| [s17](s17_autonomous_agents/README.md) | Autonomous Agents | 共享看板、自动认领与 idle 生命周期 |
+| [s18](s18_worktree_isolation/README.md) | Worktree Isolation | 任务绑定独立分支/目录，局部工具 cwd 与删除保护 |
+| [s19](s19_mcp_plugin/README.md) | MCP Tools | mock 发现、动态 schema、名称校验与 Lead 路由 |
+| [s20](s20_comprehensive_agent/README.md) | Comprehensive Agent | 复用 s19，增加 9 项跨模块集成测试与整体架构文档 |
 
-各章节采用累计实现：后章保留前章能力，而不是孤立示例。
+s01–s19 采用累计实现：后章保留前章能力，而不是孤立示例。s20 仅新增集成测试与文档。
 
 ## 与官方项目的关系
 
@@ -36,8 +45,8 @@ Loop 的基本形状。
 
 | 维度 | 官方 Learn Claude Code | 本仓库 cc-harness-lab |
 | --- | --- | --- |
-| 当前课程范围 | 主线 s01–s20，另有 legacy track 和 Web 教学平台 | 当前完成 s01–s13，保留代码、中文说明和测试 |
-| 章节组织 | 每章隔离一个机制，部分章节使用较小 kernel，s15 再组装完整 Harness | 每章直接复制并继承上一章，s13 已包含 s01–s12 全部能力 |
+| 当前课程范围 | 主线 s01–s20，另有 legacy track 和 Web 教学平台 | 已实现 s01–s19 教学能力，s20 复用最新实现做集成验收 |
+| 章节组织 | 每章隔离一个机制，部分章节使用较小 kernel，s15 再组装完整 Harness | s01–s19 累计继承；s20 不复制代码，以跨模块验收收尾 |
 | 默认模型协议 | Anthropic SDK，`tool_use` / `tool_result` content blocks | 百炼 OpenAI-compatible，`tool_calls` / 独立 `role=tool` 消息 |
 | 默认配置 | `ANTHROPIC_API_KEY`、`ANTHROPIC_BASE_URL`、`MODEL_ID` | `DASHSCOPE_API_KEY`、`DASHSCOPE_BASE_URL`、`MODEL_ID` |
 | Tool Schema | Anthropic `name + input_schema` | OpenAI function calling 的 `type=function + function.parameters` |
@@ -47,7 +56,7 @@ Loop 的基本形状。
 | Context Compact | 讲解四层压缩机制 | 适配 OpenAI 消息配对，增加 transcript、主动 compact 和单次 reactive retry |
 | Memory | selection、extraction、consolidation | 与 s08 联动，使用压缩前快照，并增加常见 Secret 拒绝和可配置目录 |
 | Background | daemon thread + 完成通知 | 保持同一语义，并保证 Permission 在父线程、通知不复用 `tool_call_id` |
-| 验证方式 | 官方 runnable lessons 与上游测试 | 每章对应 `tests/test_sXX.py`，当前全量 243 项测试 |
+| 验证方式 | 官方 runnable lessons 与上游测试 | 每章对应 `tests/test_sXX.py`，截至 2026-09-05 全量 799 项测试 |
 | 文档形态 | 英文默认文档、中文/日文翻译、图片和 Web 课程 | 中文 README、源码分析和远端可运行实验，不包含 Web 平台 |
 
 ### 为什么本仓库代码更长
@@ -102,20 +111,15 @@ assistant 产生 `tool_calls`，每个结果追加为独立的 `role=tool` 消�
 ANALYSIS 文档中。例如 s09 的 Memory 对照见
 [`s09_memory/README.md`](s09_memory/README.md#与官方代码的区别)。
 
-### 当前尚未覆盖的官方主线
+### 当前教学能力与生产能力的边界
 
-官方当前后续章节还包括：
+s14–s19 已接入累计 Harness；s20 对工作目录隔离、队友、MCP mock、后台结果、压缩、
+重试、定时队列、权限和 Memory 的交互做了集成检查，详见各章节 README。
 
-- s14 Cron Scheduler：持久化定时触发；
-- s15 Agent Teams：持久队友与 mailbox 协调；
-- s16 Team Protocols：shutdown 与 plan approval 协议；
-- s17 Autonomous Agents：空闲轮询、自动认领和自组织；
-- s18 Worktree Isolation：任务绑定独立 Git worktree；
-- s19 MCP Tools：外部工具发现和统一路由；
-- s20 Comprehensive Agent：把全部机制组装进一个完整 Harness。
-
-因此，本仓库目前只能与官方 s01–s13 对齐，不能被描述为官方完整实现，也不是 Claude
-Code 本体的等价替代。
+这些结果不代表已实现 Claude Code 的完整能力：MCP 没有真实传输与认证；任务没有租约和
+自动重分配；worktree 不自动合并；CLI 没有统一取消全部后台工作和队友的机制；文件路径
+与权限检查也不构成操作系统安全沙箱。真实模型只做过部分章节的小型验证，不能等同于
+全链路成功率或生产可靠性验收。
 
 ## Evaluation Plan
 
@@ -123,7 +127,7 @@ Code 本体的等价替代。
 安全与权限、故障恢复、成本和延迟，以及 Compact、Memory、SubAgent、Task DAG 和
 Background 的专项指标。
 
-当前只固化方案；完成 s01–s20 和 Comprehensive Agent 后实施。详见 [EVALUATION.md](EVALUATION.md)。
+当前完成的是功能测试与集成验收；该系统化评测方案尚未执行，不能将自动化测试通过数当作真实任务成功率。详见 [EVALUATION.md](EVALUATION.md)。
 
 ## Current Stage
 
