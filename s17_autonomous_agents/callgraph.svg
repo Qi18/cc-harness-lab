@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1910" viewBox="0 0 1440 1910" role="img" aria-labelledby="title desc">
+<title id="title">s17 Autonomous Agents 调用图</title>
+<desc id="desc">Lead 共享任务板与队友工作循环、空闲认领、任务事务和退出路径。</desc>
+<defs><style>
+text {font-family:-apple-system,BlinkMacSystemFont,"Noto Sans CJK SC","Microsoft YaHei",sans-serif;fill:#344054}
+.title {font-size:25px;font-weight:700;fill:#101828}
+.subtitle {font-size:15px;fill:#667085}
+.heading {font-size:18px;font-weight:700;fill:#101828}
+.body {font-size:15px}
+.small {font-size:13px;fill:#667085}
+</style><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8Z" fill="#98a2b3"/></marker></defs>
+<rect width="1440" height="1910" fill="white"/>
+<text x="40" y="43" class="title">s17 Autonomous Agents · 队友自己看板、自己认领</text>
+<text x="40" y="73" class="subtitle">延续 s16 双栏布局：左侧 Lead 阶段，右侧自治队友与任务板；紫色表示 s17 新增或强化的路径。</text>
+<rect x="40" y="96" width="14" height="14" rx="3" fill="#f4f3ff" stroke="#7f56d9"/><text x="62" y="109" class="small">Autonomy · s17</text>
+<rect x="270" y="96" width="14" height="14" rx="3" fill="#ecfeff" stroke="#06aed4"/><text x="292" y="109" class="small">Teams · s15</text>
+<rect x="500" y="96" width="14" height="14" rx="3" fill="#fffaeb" stroke="#dc6803"/><text x="522" y="109" class="small">Protocols · s16</text>
+<rect x="730" y="96" width="14" height="14" rx="3" fill="#fdf4ff" stroke="#c11574"/><text x="752" y="109" class="small">Task Board · s12</text>
+<rect x="960" y="96" width="14" height="14" rx="3" fill="#f0fdf9" stroke="#0e9384"/><text x="982" y="109" class="small">Background · s13</text>
+<rect x="1190" y="96" width="14" height="14" rx="3" fill="#f9fafb" stroke="#98a2b3"/><text x="1212" y="109" class="small">已有循环 / 基础设施</text>
+<text x="40" y="151" class="small">LEAD · 单轮调度与结果收集</text>
+<text x="750" y="151" class="small">TEAMMATE · 工作、找活与退出</text>
+<rect x="40" y="170" width="600" height="170" rx="12" fill="#f4f3ff" stroke="#7f56d9" stroke-width="1.4"/>
+<text x="60" y="202" class="heading">⓪ 装配：同一张任务板</text>
+<text x="60" y="230" class="body">AgentHarness.__init__  →  TaskManager</text>
+<text x="60" y="255" class="body">AgentTeamManager(..., tasks=self.tasks)</text>
+<text x="60" y="280" class="body">团队管理器 → AutonomousWorker(self.tasks)</text>
+<text x="60" y="305" class="body">定位：loop:59 / 134–140；team:339；auto:20</text>
+<rect x="750" y="170" width="650" height="170" rx="12" fill="#ecfeff" stroke="#06aed4" stroke-width="1.4"/>
+<text x="770" y="202" class="heading">队友启动与能力装配</text>
+<text x="770" y="230" class="body">spawn_teammate → cc-teammate-&lt;name&gt; 线程</text>
+<text x="770" y="255" class="body">私有 messages；共享工作区、工具执行器与任务板</text>
+<text x="770" y="280" class="body">8 个工具：s16 的 5 个 + list / claim / complete_task</text>
+<text x="770" y="305" class="body">定位：team:456 / 520 / 581</text>
+<path d="M640 250 H742" fill="none" stroke="#98a2b3" stroke-width="1.6" stroke-dasharray="5 5" marker-end="url(#arrow)"/>
+<rect x="40" y="370" width="600" height="145" rx="12" fill="#f9fafb" stroke="#98a2b3" stroke-width="1.4"/>
+<text x="60" y="402" class="heading">① turn 开始：消费已有外部事件</text>
+<text x="60" y="430" class="body">定时 prompt + 后台通知 + Lead 邮箱进入历史</text>
+<text x="60" y="455" class="body">收信统一经过协议路由；准备 Prompt / Memory</text>
+<text x="60" y="480" class="body">自动认领不在这里执行，而在队友的 idle 阶段</text>
+<path d="M340 340 V362" fill="none" stroke="#98a2b3" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<rect x="750" y="370" width="650" height="195" rx="12" fill="#ecfeff" stroke="#06aed4" stroke-width="1.4"/>
+<text x="770" y="402" class="heading">WORK：沿用模型与工具循环</text>
+<text x="770" y="430" class="body">_process_teammate_inbox → restore_identity</text>
+<text x="770" y="455" class="body">模型请求：固定 system + 最近消息</text>
+<text x="770" y="480" class="body">tool_calls → ToolExecutor → 队友 handler</text>
+<text x="770" y="505" class="body">无工具调用 → 发 result → idle；超 10 轮 → error → idle</text>
+<text x="770" y="530" class="body">定位：team:555 / 581 / 606；auto:46</text>
+<path d="M1075 340 V362" fill="none" stroke="#98a2b3" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<rect x="40" y="545" width="600" height="145" rx="12" fill="#f9fafb" stroke="#98a2b3" stroke-width="1.4"/>
+<text x="60" y="577" class="heading">② 每轮入口：收信后再请求模型</text>
+<text x="60" y="605" class="body">_inject_team_messages → consume_lead_messages</text>
+<text x="60" y="630" class="body">协议响应先更新状态，再返回给主循环</text>
+<text x="60" y="655" class="body">队友只写邮箱，不直接写 Lead 的 messages</text>
+<path d="M340 515 V537" fill="none" stroke="#98a2b3" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<rect x="750" y="595" width="650" height="170" rx="12" fill="#f4f3ff" stroke="#7f56d9" stroke-width="1.4"/>
+<text x="770" y="627" class="heading">IDLE：先看邮箱，再找任务</text>
+<text x="770" y="655" class="body">AutonomousWorker.idle_poll(name, messages, ...)</text>
+<text x="770" y="680" class="body">有邮件 → 回团队循环处理协议或普通消息</text>
+<text x="770" y="705" class="body">无邮件 → claim_next；成功 → task_event → WORK</text>
+<text x="770" y="730" class="body">默认扫描间隔 5 秒；本次 idle 预算 60 秒</text>
+<path d="M1075 565 V587" fill="none" stroke="#98a2b3" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<path d="M1400 690 H1420 V455 H1408" fill="none" stroke="#98a2b3" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text x="1220" y="585" class="small">有消息 / 认领成功</text>
+<rect x="40" y="720" width="600" height="195" rx="12" fill="#fdf4ff" stroke="#c11574" stroke-width="1.4"/>
+<text x="60" y="752" class="heading">③ 工具批次：Lead 创建，队友领取</text>
+<text x="60" y="780" class="body">create_task → 保存 pending + blockedBy</text>
+<text x="60" y="805" class="body">spawn_teammate → 启动队友后立即返回</text>
+<text x="60" y="830" class="body">Lead 保留任务管理和协议工具</text>
+<text x="60" y="855" class="body">队友 claim / complete 的 owner 由闭包固定</text>
+<text x="60" y="880" class="body">定位：loop:275 / 383；task:329；team:520</text>
+<path d="M340 690 V712" fill="none" stroke="#98a2b3" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<rect x="750" y="795" width="650" height="170" rx="12" fill="#f4f3ff" stroke="#7f56d9" stroke-width="1.4"/>
+<text x="770" y="827" class="heading">候选扫描：三个条件缺一不可</text>
+<text x="770" y="855" class="body">scan_unclaimed_tasks → 按文件名扫描 task_*.json</text>
+<text x="770" y="880" class="body">status == pending  且  owner is None</text>
+<text x="770" y="905" class="body">blocking_dependencies == []：依赖全部 completed</text>
+<text x="770" y="930" class="body">定位：task:290 / 461 / 471；缺失依赖也阻塞</text>
+<path d="M1075 765 V787" fill="none" stroke="#98a2b3" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<path d="M640 817 H742" fill="none" stroke="#98a2b3" stroke-width="1.6" stroke-dasharray="5 5" marker-end="url(#arrow)"/>
+<rect x="40" y="945" width="600" height="195" rx="12" fill="#f9fafb" stroke="#98a2b3" stroke-width="1.4"/>
+<text x="60" y="977" class="heading">④ 结束前补收：有结果则继续一轮</text>
+<text x="60" y="1005" class="body">模型无 tool_calls → 再收后台通知与队友消息</text>
+<text x="60" y="1030" class="body">任一非空 → continue，让模型先看已到达结果</text>
+<text x="60" y="1055" class="body">否则 Stop Hook / Memory → 返回答案</text>
+<text x="60" y="1080" class="body">不自动等待全部队友，也不因看板变化唤醒 Lead</text>
+<text x="60" y="1105" class="body">定位：loop:436 agent_loop；loop:326 收信</text>
+<path d="M340 915 V937" fill="none" stroke="#98a2b3" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<rect x="750" y="995" width="650" height="195" rx="12" fill="#f4f3ff" stroke="#7f56d9" stroke-width="1.4"/>
+<text x="770" y="1027" class="heading">认领事务：扫描可以旧，认领必须重读</text>
+<text x="770" y="1055" class="body">claim_task → RLock + flock(.board.lock)</text>
+<text x="770" y="1080" class="body">锁内 _load → 检查 pending / owner / blockedBy</text>
+<text x="770" y="1105" class="body">_save：owner=队友，status=in_progress</text>
+<text x="770" y="1130" class="body">返回 Claimed 后才注入；竞争失败尝试下一候选</text>
+<text x="770" y="1155" class="body">定位：task:176 / 398 / 471；auto:34</text>
+<path d="M1075 965 V987" fill="none" stroke="#98a2b3" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<path d="M750 1100 H692 V655 H742" fill="none" stroke="#98a2b3" stroke-width="1.6" stroke-dasharray="5 5" marker-end="url(#arrow)"/>
+<text x="750" y="1388" class="small">虚线：调用 / 数据衔接</text>
+<rect x="40" y="1170" width="600" height="195" rx="12" fill="#fffaeb" stroke="#dc6803" stroke-width="1.4"/>
+<text x="60" y="1202" class="heading">返回路径：发信 ≠ Lead 已经看到</text>
+<text x="60" y="1230" class="body">队友总结 → MessageBus → .mailboxes/lead.jsonl</text>
+<text x="60" y="1255" class="body">自动收信 → 独立 &lt;team_inbox&gt; user 事件</text>
+<text x="60" y="1280" class="body">check_inbox → 当前工具返回值（同一消费入口）</text>
+<text x="60" y="1305" class="body">关闭响应消费后才推进协议请求状态</text>
+<text x="60" y="1330" class="body">定位：team:417 / 742 / 755；loop:326</text>
+<rect x="750" y="1220" width="650" height="145" rx="12" fill="#fdf4ff" stroke="#c11574" stroke-width="1.4"/>
+<text x="770" y="1252" class="heading">完成事务：模型必须明确调用</text>
+<text x="770" y="1280" class="body">complete_task(task_id, 固定 owner) → 校验归属</text>
+<text x="770" y="1305" class="body">in_progress → completed → 重新判断下游依赖</text>
+<text x="770" y="1330" class="body">定位：task:428；只输出总结不会更改任务状态</text>
+<text x="1110" y="1210" class="small">经 WORK 中的模型工具调用</text>
+<path d="M1075 1190 V1212" fill="none" stroke="#98a2b3" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<path d="M750 480 H712 V1280 H648" fill="none" stroke="#98a2b3" stroke-width="1.6" stroke-dasharray="5 5" marker-end="url(#arrow)"/>
+<text x="40" y="1411" class="heading">依赖与归属 · 锁保护任务状态，不保护共享源码文件</text>
+<rect x="40" y="1430" width="420" height="145" rx="12" fill="#fdf4ff" stroke="#c11574" stroke-width="1.4"/>
+<text x="60" y="1462" class="heading">A / B：独立输入任务</text>
+<text x="60" y="1490" class="body">pending → 两名队友分别 claim</text>
+<text x="60" y="1515" class="body">写入并回读验证 → complete_task</text>
+<text x="60" y="1540" class="body">两项完成后才解锁 C</text>
+<rect x="510" y="1430" width="420" height="145" rx="12" fill="#f4f3ff" stroke="#7f56d9" stroke-width="1.4"/>
+<text x="530" y="1462" class="heading">C：依赖 A 和 B</text>
+<text x="530" y="1490" class="body">blockedBy=[A, B]</text>
+<text x="530" y="1515" class="body">依赖完成 → 成为候选 → 认领</text>
+<text x="530" y="1540" class="body">模型处理产物并显式完成</text>
+<rect x="980" y="1430" width="420" height="145" rx="12" fill="#ecfeff" stroke="#06aed4" stroke-width="1.4"/>
+<text x="1000" y="1462" class="heading">周期结束不等于线程结束</text>
+<text x="1000" y="1490" class="body">发送总结 → 回到 IDLE</text>
+<text x="1000" y="1515" class="body">扫描不到工作 → 等待与超时</text>
+<text x="1000" y="1540" class="body">还有全局 pending 也可能退出</text>
+<path d="M460 1500 H502" fill="none" stroke="#98a2b3" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<path d="M930 1500 H972" fill="none" stroke="#98a2b3" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<rect x="40" y="1605" width="660" height="155" rx="12" fill="#fffaeb" stroke="#dc6803" stroke-width="1.4"/>
+<text x="60" y="1637" class="heading">退出路径：两个正常出口，一条异常出口</text>
+<text x="60" y="1665" class="body">shutdown_request → 校验、回应 → stopping → done</text>
+<text x="60" y="1690" class="body">idle 超时 → 发送退出说明 → done（不是协议 approved）</text>
+<text x="60" y="1715" class="body">运行异常 → 尝试发送 error → failed</text>
+<text x="60" y="1740" class="body">未完成任务保留原状态；没有自动释放 owner 或重新分配</text>
+<rect x="730" y="1605" width="670" height="155" rx="12" fill="#f9fafb" stroke="#98a2b3" stroke-width="1.4"/>
+<text x="750" y="1637" class="heading">执行边界：保留前几章的线程分工</text>
+<text x="750" y="1665" class="body">Lead / Cron turn：共用 Agent 执行锁</text>
+<text x="750" y="1690" class="body">队友线程：私有模型历史；idle 不持续调用模型</text>
+<text x="750" y="1715" class="body">任务写入：遵守同一 .board.lock 协议才受事务保护</text>
+<text x="750" y="1740" class="body">代码定位采用本次源码行号；函数名是稳定阅读入口</text>
+<text x="40" y="1807" class="subtitle">真实验证：qwen-plus · 2 名队友 · 3 项依赖任务 · 产物 21 × 2 = 42 · 关闭握手与 60 秒退出均通过</text>
+<text x="40" y="1840" class="subtitle">注意：没有租约、心跳回收、角色匹配或工作区隔离；completed 是显式状态声明，不能代替业务验收。</text>
+<text x="40" y="1875" class="small">模块缩写：loop = agent_loop.py；team = agent_teams.py；auto = autonomous_agents.py；task = task_system.py</text>
+</svg>
