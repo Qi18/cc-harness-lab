@@ -1,14 +1,170 @@
-# cc-harness-lab
+<div align="center">
+  <img src="assets/logo.png" alt="cc-harness-lab — CC Loop" width="240" />
+  <h1>cc-harness-lab</h1>
+  <h3>从一个循环，理解 Agent Harness</h3>
+</div>
 
-用 Python 手写一个 Claude Code 风格的 Agent Harness，理解模型调用背后的工具执行、上下文管理、任务协调与运行时控制。
+<div align="center">
 
-模型负责理解目标、选择工具和生成回答；Harness 负责把这些决定变成可执行、可观察、带约束的流程。这个项目围绕同一个 Agent Loop，逐章加入权限、Hooks、Memory、任务图、队友、Worktree 和动态工具接入。
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![Model API](https://img.shields.io/badge/Model_API-OpenAI_compatible-0F766E)
+![MCP](https://img.shields.io/badge/MCP-In--process_Mock-D97706)
 
-这是学习与实验项目，不是 Claude Code 的等价替代，也不是生产级安全沙箱。
+[快速开始](#quick-start) · [课程导航](#lessons) · [整体架构](#architecture) · [实验与评测](#evaluation)
 
-[快速开始](#快速开始) · [章节导航](#章节导航) · [整体架构](s20_comprehensive_agent/README.md) · [评测方案](EVALUATION.md)
+</div>
 
-## 核心设计
+- 用 Python 手写 Claude Code 风格的 Agent Harness，观察模型如何通过工具与环境交互。
+- 围绕同一个 Agent Loop，加入权限、Hooks、规划、记忆、压缩、恢复、后台任务和多 Agent 协作。
+- s01–s19 保留累计可运行实现，s20 复用 s19 做跨模块集成验收，不再复制 Harness。
+- 默认使用百炼 OpenAI-compatible 接口；MCP 以进程内 mock 演示动态发现与调用路由。
+- 代码、中文说明、章节测试与集成场景相互对应，适合边运行、边读源码、边做实验。
+
+> 本项目聚焦 Harness 机制，不训练模型，也不提供 Claude Code 的等价替代或生产级安全沙箱。
+
+---
+
+<a id="introduction"></a>
+
+# 📌 项目介绍
+
+一个能够回答问题的模型，和一个能够持续完成编码任务的 Agent，中间还隔着一层运行时。
+模型可以提出工具调用，但调用是否合法、结果怎样写回、历史过长如何处理、队友如何分工、
+任务失败后怎样继续，都需要 Harness 明确实现。
+
+cc-harness-lab 把这层运行时拆成可以逐章理解的机制。从最小的“模型 → 工具 → 结果”循环出发，
+逐步观察上下文、权限、并发和持久状态如何参与同一次任务。重点不仅是每个模块能做什么，
+更是它们在一起时，由谁持有状态、通过什么接口协作、哪些事情仍不能保证。
+
+## 🎯 你可以在这里学到什么？
+
+- **执行闭环**：工具 schema、handler、权限检查与生命周期 Hooks。
+- **上下文管理**：Skills 按需加载、Memory 召回、分层 Compact 与错误恢复。
+- **任务协调**：Todo 清单、持久任务图、后台结果通知与定时 turn。
+- **多 Agent 协作**：独立队友循环、邮箱协议、自动认领与 Worktree 目录隔离。
+- **扩展与验收**：动态工具接入、消息配对和跨模块集成测试。
+
+先体验累计 Harness，再按章节回看新增机制；或者从 s01 开始，逐次对比循环的变化。
+两种阅读方式都使用同一份课程目录。
+
+---
+
+<a id="quick-start"></a>
+
+# 📌 快速开始
+
+运行环境：Python 3.10+、支持 Bash 和 flock 的 Unix 环境；Worktree 功能还需要 Git。
+
+## Ⅰ 安装与运行
+
+```bash
+git clone https://github.com/Qi18/cc-harness-lab.git
+cd cc-harness-lab
+
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
+
+# 首次配置；已有 .env 时不要覆盖
+cp -n .env.example .env
+# 编辑 .env，填写 DASHSCOPE_API_KEY，并检查模型与工作目录配置
+
+# 运行累计 Harness
+python3 s19_mcp_plugin/code.py
+```
+
+## Ⅱ 从最小循环开始
+
+想从最小循环开始阅读和运行：
+
+```bash
+python3 s01_agent_loop/code.py
+```
+
+s20 是复用 s19 的集成验收与架构文档，没有额外的 code.py。
+
+建议先使用受控的测试目录作为 CC_WORKDIR。使用 Worktree 时，该目录必须是 Git 仓库根目录并至少已有一个提交；新 worktree 从已提交 HEAD 创建，不包含主目录的未提交改动或被忽略的环境文件。
+
+## Ⅲ 试着给 Agent 一个任务
+
+### 文件工具
+
+> 阅读工作目录中的代码，说明主要模块的职责。只读，不修改文件。
+
+### 隔离协作
+
+> 创建两个小任务，先分别绑定 worktree，再启动队友。要求各自在自己的目录写入并回读一个文件，验证后显式完成任务。保留 worktree 供我检查，不要提交或合并。
+
+### 动态工具
+
+> 连接 docs mock 服务，搜索 worktree，读取匹配文档，再解释任务完成与分支合并的区别。
+
+MCP 示例使用进程内 mock：docs 查询固定数据，deploy 只更改模拟状态，不连接外部服务或执行真实部署。
+
+---
+
+<a id="lessons"></a>
+
+# 📌 课程与代码
+
+## Ⅰ 章节导航
+
+s01–s09 用单文件观察机制如何逐步加入循环；s10–s19 按课程能力拆分 harness/ 模块并保留累计实现；s20 复用 s19，用跨模块场景检查组合行为。
+
+| 章节 | 主题 | 重点 |
+| --- | --- | --- |
+| [s01](s01_agent_loop/README.md) | Agent Loop | 模型 → 工具 → 结果 → 模型 |
+| [s02](s02_tool_use/README.md) | Tool Use | schema、handler 与工具分发 |
+| [s03](s03_permission/README.md) | Permission | 拒绝、询问与放行 |
+| [s04](s04_hooks/README.md) | Hooks | 输入、工具前后与停止事件 |
+| [s05](s05_todo_write/README.md) | TodoWrite | 当前执行清单与状态约束 |
+| [s06](s06_subagent/README.md) | Subagent | 独立上下文、同步委派与能力限制 |
+| [s07](s07_skill_loading/README.md) | Skills | 目录发现与正文按需加载 |
+| [s08](s08_context_compact/README.md) | Context Compact | 分层压缩、结果落盘与协议配对 |
+| [s09](s09_memory/README.md) | Memory | 召回、提取与跨会话记忆 |
+| [s10](s10_system_prompt/README.md) | System Prompt | 根据真实运行态组装提示词 |
+| [s11](s11_error_recovery/README.md) | Error Recovery | 有界重试、fallback 与上下文恢复 |
+| [s12](s12_task_system/README.md) | Task System | 持久任务、归属与依赖图 |
+| [s13](s13_background_tasks/README.md) | Background Tasks | 后台执行与一次性结果通知 |
+| [s14](s14_cron_scheduler/README.md) | Cron Scheduler | 到期队列与 turn 串行执行 |
+| [s15](s15_agent_teams/README.md) | Agent Teams | 常驻队友、独立循环与邮箱 |
+| [s16](s16_team_protocols/README.md) | Team Protocols | 计划审批与关闭握手 |
+| [s17](s17_autonomous_agents/README.md) | Autonomous Agents | 空闲扫描与自动认领 |
+| [s18](s18_worktree_isolation/README.md) | Worktree Isolation | 任务绑定独立目录、分支与删除保护 |
+| [s19](s19_mcp_plugin/README.md) | MCP Tools | mock 发现、动态工具池与调用适配 |
+| [s20](s20_comprehensive_agent/README.md) | Comprehensive Agent | 整体调用链与跨模块集成验收 |
+
+每章 README 解释具体机制、设计取舍和验证边界；总览不重复展开全部源码细节。
+
+## Ⅱ 目录结构
+
+```text
+cc-harness-lab/
+├── s01_agent_loop/ … s09_memory/       单文件教学章节
+├── s10_system_prompt/ … s18_worktree_isolation/
+│   ├── code.py                        章节 CLI
+│   ├── harness/                       按能力拆分的累计实现
+│   └── README.md                      机制说明
+├── s19_mcp_plugin/
+│   ├── code.py                        累计 Harness 交互入口
+│   ├── harness/                       循环与各能力模块
+│   └── README.md
+├── s20_comprehensive_agent/
+│   └── README.md                      整体架构，不复制 Harness
+├── skills/                            示例 Skill
+├── tests/                             章节测试与集成场景
+├── EVALUATION.md                       系统化评测设计
+├── .env.example                       配置模板
+└── requirements.txt
+```
+
+查看主体实现可从 [agent_loop.py](s19_mcp_plugin/harness/agent_loop.py) 开始，再按调用关系进入各能力模块。模块文件采用能力名，不再添加章节前缀；config、models 和 provider 保存公共配置、数据结构与模型协议适配。
+
+---
+
+<a id="architecture"></a>
+
+# 📌 Harness 架构
 
 ```text
 用户输入 / 定时任务
@@ -47,53 +203,34 @@
 
 详细的 turn 调用链、状态归属与交叉场景见 [s20 整体架构](s20_comprehensive_agent/README.md)。
 
-## 快速开始
+---
 
-运行环境：Python 3.10+、支持 Bash 和 flock 的 Unix 环境；Worktree 功能还需要 Git。
+<a id="evaluation"></a>
 
-```bash
-git clone https://github.com/Qi18/cc-harness-lab.git
-cd cc-harness-lab
+# 📌 实验与评测
 
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install -r requirements.txt
-
-# 首次配置；已有 .env 时不要覆盖
-cp -n .env.example .env
-# 编辑 .env，填写 DASHSCOPE_API_KEY，并检查模型与工作目录配置
-
-# 运行累计 Harness
-python3 s19_mcp_plugin/code.py
-```
-
-想从最小循环开始阅读和运行：
+自动化测试使用标准库 unittest，不依赖额外安装 pytest，也不需要真实模型 API Key：
 
 ```bash
-python3 s01_agent_loop/code.py
+# 全仓回归
+python3 -m unittest discover -s tests
+
+# MCP 教学桥
+python3 -m unittest tests.test_s19
+
+# 跨模块集成场景
+python3 -m unittest tests.test_s20
 ```
 
-s20 是复用 s19 的集成验收与架构文档，没有额外的 code.py。
+测试用可控模型响应验证路由与状态迁移；需要文件、Git 或线程的场景在临时工作区真实执行。部分章节 README 另有真实模型实验说明，两类验证不能互相替代。
 
-建议先使用受控的测试目录作为 CC_WORKDIR。使用 Worktree 时，该目录必须是 Git 仓库根目录并至少已有一个提交；新 worktree 从已提交 HEAD 创建，不包含主目录的未提交改动或被忽略的环境文件。
+[评测方案](EVALUATION.md)讨论任务完成率、重复运行一致性、安全与权限、恢复、成本和延迟等指标。单元测试与集成测试用于检查实现契约，不应被解释成真实任务成功率或生产可靠性结论。
 
-### 可以尝试的任务
+---
 
-基础工具：
+# 📌 配置与使用边界
 
-> 阅读工作目录中的代码，说明主要模块的职责。只读，不修改文件。
-
-隔离协作：
-
-> 创建两个小任务，先分别绑定 worktree，再启动队友。要求各自在自己的目录写入并回读一个文件，验证后显式完成任务。保留 worktree 供我检查，不要提交或合并。
-
-动态工具：
-
-> 连接 docs mock 服务，搜索 worktree，读取匹配文档，再解释任务完成与分支合并的区别。
-
-MCP 示例使用进程内 mock：docs 查询固定数据，deploy 只更改模拟状态，不连接外部服务或执行真实部署。
-
-## 配置
+## Ⅰ 环境配置
 
 配置来自环境变量或本地 .env；以下默认值对应累计实现的 Settings。
 
@@ -112,60 +249,23 @@ MCP 示例使用进程内 mock：docs 查询固定数据，deploy 只更改模�
 
 .env 已被 Git 忽略，但这不等于所有运行时文件都会被忽略或脱敏。不要在 prompt、测试产物、Memory、日志或提交中保存密钥和业务敏感数据。
 
-## 章节导航
+## Ⅱ 安全与能力边界
 
-s01–s09 用单文件观察机制如何逐步加入循环；s10–s19 按课程能力拆分 harness/ 模块并保留累计实现；s20 复用 s19，用跨模块场景检查组合行为。
+- **不是安全沙箱。** 文件工具有路径检查，Bash 有教学版权限策略，但同一用户进程中的 shell 不能仅靠字符串规则和 cwd 实现强隔离。
+- **MCP 是 mock。** 没有真实 stdio/HTTP 传输、协议握手、认证或生产服务授权；工具描述中的标注不是用户许可。
+- **协作不等于自动验收。** 队友总结和线程退出不会自动完成任务；失败可能留下 in_progress，系统没有任务租约或自动重分配。
+- **隔离不等于集成。** Worktree 不自动合并；前置任务完成也不会把其分支产物自动带入后续任务。
+- **持久文件不等于会话恢复。** 后台任务和部分团队状态仍在内存中，进程退出可能丢失工作；CLI 不提供统一取消全部活动的机制。
+- **提示词不是强制策略。** Skills、Memory、团队消息和工具结果都需要信任边界，文字提醒不能替代执行层约束。
+- **运行记录可能敏感。** Transcript、工具结果、邮箱和 Memory 可能包含代码与上下文，应自行控制访问和保留范围。
 
-| 章节 | 主题 | 重点 |
-| --- | --- | --- |
-| [s01](s01_agent_loop/README.md) | Agent Loop | 模型 → 工具 → 结果 → 模型 |
-| [s02](s02_tool_use/README.md) | Tool Use | schema、handler 与工具分发 |
-| [s03](s03_permission/README.md) | Permission | 拒绝、询问与放行 |
-| [s04](s04_hooks/README.md) | Hooks | 输入、工具前后与停止事件 |
-| [s05](s05_todo_write/README.md) | TodoWrite | 当前执行清单与状态约束 |
-| [s06](s06_subagent/README.md) | Subagent | 独立上下文、同步委派与能力限制 |
-| [s07](s07_skill_loading/README.md) | Skills | 目录发现与正文按需加载 |
-| [s08](s08_context_compact/README.md) | Context Compact | 分层压缩、结果落盘与协议配对 |
-| [s09](s09_memory/README.md) | Memory | 召回、提取与跨会话记忆 |
-| [s10](s10_system_prompt/README.md) | System Prompt | 根据真实运行态组装提示词 |
-| [s11](s11_error_recovery/README.md) | Error Recovery | 有界重试、fallback 与上下文恢复 |
-| [s12](s12_task_system/README.md) | Task System | 持久任务、归属与依赖图 |
-| [s13](s13_background_tasks/README.md) | Background Tasks | 后台执行与一次性结果通知 |
-| [s14](s14_cron_scheduler/README.md) | Cron Scheduler | 到期队列与 turn 串行执行 |
-| [s15](s15_agent_teams/README.md) | Agent Teams | 常驻队友、独立循环与邮箱 |
-| [s16](s16_team_protocols/README.md) | Team Protocols | 计划审批与关闭握手 |
-| [s17](s17_autonomous_agents/README.md) | Autonomous Agents | 空闲扫描与自动认领 |
-| [s18](s18_worktree_isolation/README.md) | Worktree Isolation | 任务绑定独立目录、分支与删除保护 |
-| [s19](s19_mcp_plugin/README.md) | MCP Tools | mock 发现、动态工具池与调用适配 |
-| [s20](s20_comprehensive_agent/README.md) | Comprehensive Agent | 整体调用链与跨模块集成验收 |
+请在可恢复、受控的工作区中学习和实验；不要直接赋予生产凭据或用于不可逆的业务操作。
 
-每章 README 解释具体机制、设计取舍和验证边界；总览不重复展开全部源码细节。
+---
 
-## 项目组织
+# 📌 致谢与实现说明
 
-```text
-cc-harness-lab/
-├── s01_agent_loop/ … s09_memory/       单文件教学章节
-├── s10_system_prompt/ … s18_worktree_isolation/
-│   ├── code.py                        章节 CLI
-│   ├── harness/                       按能力拆分的累计实现
-│   └── README.md                      机制说明
-├── s19_mcp_plugin/
-│   ├── code.py                        累计 Harness 交互入口
-│   ├── harness/                       循环与各能力模块
-│   └── README.md
-├── s20_comprehensive_agent/
-│   └── README.md                      整体架构，不复制 Harness
-├── skills/                            示例 Skill
-├── tests/                             章节测试与集成场景
-├── EVALUATION.md                       系统化评测设计
-├── .env.example                       配置模板
-└── requirements.txt
-```
-
-查看主体实现可从 [agent_loop.py](s19_mcp_plugin/harness/agent_loop.py) 开始，再按调用关系进入各能力模块。模块文件采用能力名，不再添加章节前缀；config、models 和 provider 保存公共配置、数据结构与模型协议适配。
-
-## 与官方教程的关系
+## 课程来源
 
 项目跟随 ShareAI Lab 的 Learn Claude Code 课程学习 Harness Engineering，是按课程机制独立重写的练习，不是官方仓库的 fork，也不是逐行翻译。
 
@@ -187,33 +287,6 @@ cc-harness-lab/
 
 协议适配不只是重命名字段：它同时影响工具结果追加、压缩边界、恢复流程和供应商扩展参数。项目的重点是理解并实现这些运行时契约，而不是复刻产品界面。
 
-## 测试与评测
+## README 组织参考
 
-自动化测试使用标准库 unittest，不依赖额外安装 pytest，也不需要真实模型 API Key：
-
-```bash
-# 全仓回归
-python3 -m unittest discover -s tests
-
-# MCP 教学桥
-python3 -m unittest tests.test_s19
-
-# 跨模块集成场景
-python3 -m unittest tests.test_s20
-```
-
-测试用可控模型响应验证路由与状态迁移；需要文件、Git 或线程的场景在临时工作区真实执行。部分章节 README 另有真实模型实验说明，两类验证不能互相替代。
-
-[评测方案](EVALUATION.md)讨论任务完成率、重复运行一致性、安全与权限、恢复、成本和延迟等指标。单元测试与集成测试用于检查实现契约，不应被解释成真实任务成功率或生产可靠性结论。
-
-## 使用边界
-
-- **不是安全沙箱。** 文件工具有路径检查，Bash 有教学版权限策略，但同一用户进程中的 shell 不能仅靠字符串规则和 cwd 实现强隔离。
-- **MCP 是 mock。** 没有真实 stdio/HTTP 传输、协议握手、认证或生产服务授权；工具描述中的标注不是用户许可。
-- **协作不等于自动验收。** 队友总结和线程退出不会自动完成任务；失败可能留下 in_progress，系统没有任务租约或自动重分配。
-- **隔离不等于集成。** Worktree 不自动合并；前置任务完成也不会把其分支产物自动带入后续任务。
-- **持久文件不等于会话恢复。** 后台任务和部分团队状态仍在内存中，进程退出可能丢失工作；CLI 不提供统一取消全部活动的机制。
-- **提示词不是强制策略。** Skills、Memory、团队消息和工具结果都需要信任边界，文字提醒不能替代执行层约束。
-- **运行记录可能敏感。** Transcript、工具结果、邮箱和 Memory 可能包含代码与上下文，应自行控制访问和保留范围。
-
-请在可恢复、受控的工作区中学习和实验；不要直接赋予生产凭据或用于不可逆的业务操作。
+首页参考 [MiniMind](https://github.com/jingyaogong/minimind) 的文档组织方式：从项目简介和快速体验进入，再展开技术内容与实验说明。课程、代码和运行边界均以 cc-harness-lab 自身实现为准。
